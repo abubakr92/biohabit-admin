@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "biohabit",
+    "dev": "biohabit"
+  }
+}

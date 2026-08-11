@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "contextRows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "stackId", "order": "ASCENDING" },
+        { "fieldPath": "stackSortOrder", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

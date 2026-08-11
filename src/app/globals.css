@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+* {
+  box-sizing: border-box;
+}
+button,
+a,
+input,
+select,
+textarea {
+  outline-color: #236b5b;
+}
+button,
+select {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+::selection {
+  background: #cce8df;
+}
+@layer components {
+  .btn {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply border-[#236b5b] bg-[#236b5b] text-white hover:bg-[#195548];
+  }
+  .btn-danger {
+    @apply border-red-200 text-red-700 hover:bg-red-50;
+  }
+  .field {
+    @apply h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#236b5b] focus:ring-2 focus:ring-[#236b5b]/15;
+  }
+  .textarea {
+    @apply min-h-24 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#236b5b] focus:ring-2 focus:ring-[#236b5b]/15;
+  }
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600;
+  }
+}

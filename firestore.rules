@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.admin == true ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accessLevel == 'admin'
+      );
+    }
+    match /stacks/{stackId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.isActive == true);
+      allow write: if false;
+    }
+    match /contextRows/{rowId} {
+      allow read: if isAdmin() || (signedIn() && get(/databases/$(database)/documents/stacks/$(resource.data.stackId)).data.isActive == true);
+      allow write: if false;
+    }
+    match /microActions/{actionId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /labels/{labelId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /users/{userId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow write: if false;
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "biohabit-admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "firebase:emulators": "powershell -ExecutionPolicy Bypass -File scripts/start-firebase-emulators.ps1",
+    "firebase:seed": "npm --prefix functions run seed:emulator",
+    "firebase:functions:build": "npm --prefix functions run build",
+    "firebase:deploy": "firebase deploy --only firestore:rules,firestore:indexes,functions:api --project biohabit"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@hookform/resolvers": "^5.7.1",
+    "@tanstack/react-query": "^5.101.4",
+    "firebase": "^12.17.1",
+    "lucide-react": "^1.31.0",
+    "next": "^15.5.9",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-hook-form": "^7.85.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^15.5.9",
+    "prettier": "^3.9.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
