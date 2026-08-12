@@ -95,6 +95,17 @@ picks it up automatically and the directory is gitignored.
 
 ## Live data checks
 
+These use the Admin SDK, which needs Application Default Credentials — `firebase login` only
+authenticates the CLI. Authenticate once:
+
+```powershell
+.\.tools\google-cloud-sdk\bin\gcloud.cmd auth application-default login
+.\.tools\google-cloud-sdk\bin\gcloud.cmd auth application-default set-quota-project biohabit
+```
+
+If `.tools/google-cloud-sdk` is not present, install the Google Cloud CLI or unpack it there; the
+directory is gitignored. Then:
+
 ```powershell
 npm --prefix functions run check-users    # read-only; lists user docs missing createdAt
 CONFIRM_BACKFILL=biohabit npm --prefix functions run backfill-users
