@@ -1,6 +1,10 @@
+// Mocks are opt-in. A build without NEXT_PUBLIC_USE_MOCKS talks to the real API rather than
+// silently serving in-memory data that looks like it saved but never reaches Firestore.
+export const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === 'true';
+
 export const env = {
   apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api',
-  useMocks: process.env.NEXT_PUBLIC_USE_MOCKS !== 'false',
+  useMocks,
   firebaseUseEmulators: process.env.NEXT_PUBLIC_FIREBASE_USE_EMULATORS === 'true',
   firebase: {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '',
