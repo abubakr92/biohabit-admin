@@ -17,9 +17,11 @@ const body = <T>(init: RequestInit) =>
   init.body ? (JSON.parse(String(init.body)) as T) : undefined;
 const id = () => crypto.randomUUID();
 
-export async function mockRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function mockRequest<T>(fullPath: string, init: RequestInit = {}): Promise<T> {
   await delay();
   const method = (init.method ?? 'GET').toUpperCase();
+  const [path, search] = fullPath.split('?');
+  const query = new URLSearchParams(search ?? '');
   if (
     typeof window !== 'undefined' &&
     window.sessionStorage.getItem('biohabit-force-error') === 'true'
@@ -95,6 +97,13 @@ export async function mockRequest<T>(path: string, init: RequestInit = {}): Prom
       updatedAt: new Date().toISOString(),
     };
     return structuredClone(stacks[index]) as T;
+  }
+  if (stackDetail && method === 'DELETE') {
+    if (!stacks.some((value) => value.id === stackDetail[1]))
+      throw new ApiError(404, 'Stack not found.');
+    stacks = stacks.filter((value) => value.id !== stackDetail[1]);
+    contextRows = contextRows.filter((row) => row.stackId !== stackDetail[1]);
+    return undefined as T;
   }
 
   if (path === '/context-rows/reorder' && method === 'POST') {
@@ -193,7 +202,26 @@ export async function mockRequest<T>(path: string, init: RequestInit = {}): Prom
     return undefined as T;
   }
 
-  if (path === '/users' && method === 'GET') return structuredClone(users) as T;
+  if (path === '/users' && method === 'GET') {
+    const status = query.get('status') ?? 'all';
+    const limit = Number(query.get('limit') ?? 50);
+    const cursor = query.get('cursor');
+    const silentBefore = Date.now() - 259_200_000;
+    const matching = users.filter(
+      (user) =>
+        status === 'all' ||
+        (status === 'silent' &&
+          (!user.lastCheckOffAt || new Date(user.lastCheckOffAt).getTime() <= silentBefore)) ||
+        (status === 'unlocked' && Boolean(user.unlockedAt)) ||
+        (status === 'locked' && !user.unlockedAt),
+    );
+    const start = cursor ? matching.findIndex((user) => user.id === cursor) + 1 : 0;
+    const page = matching.slice(start, start + limit);
+    return structuredClone({
+      users: page,
+      nextCursor: start + limit < matching.length ? (page[page.length - 1]?.id ?? null) : null,
+    }) as T;
+  }
   const unlock = path.match(/^\/users\/([^/]+)\/unlock$/);
   if (unlock && method === 'POST') {
     const index = users.findIndex((value) => value.id === unlock[1]);

@@ -1,8 +1,22 @@
 import { z } from 'zod';
+
+const bilingualRequired = z.object({
+  nl: z.string().trim().min(1, 'Required'),
+  en: z.string().trim().min(1, 'Required'),
+});
 const bilingual = z.object({ nl: z.string(), en: z.string() });
+
+// A draft needs only a title; these become required to publish. Mirrors functions/src/schemas.ts.
+export const PUBLISH_REQUIRED = ['description', 'coherence', 'suggestedTiming'] as const;
+export const FIELD_LABELS: Record<(typeof PUBLISH_REQUIRED)[number], string> = {
+  description: 'Short description',
+  coherence: 'Coherence sentence',
+  suggestedTiming: 'Suggested timing',
+};
+
 export const stackSchema = z
   .object({
-    title: bilingual,
+    title: bilingualRequired,
     description: bilingual,
     coherence: bilingual,
     suggestedTiming: bilingual,
@@ -15,21 +29,24 @@ export const stackSchema = z
   })
   .superRefine((value, ctx) => {
     if (!value.isActive) return;
-    const missing: string[] = [];
-    for (const [field, content] of Object.entries({
-      title: value.title,
-      description: value.description,
-      coherence: value.coherence,
-      suggestedTiming: value.suggestedTiming,
-    })) {
-      if (!content.nl.trim()) missing.push(`${field} (NL)`);
-      if (!content.en.trim()) missing.push(`${field} (EN)`);
-    }
-    if (missing.length)
-      ctx.addIssue({
-        code: 'custom',
-        path: ['isActive'],
-        message: `Complete before activating: ${missing.join(', ')}.`,
-      });
+    for (const field of PUBLISH_REQUIRED)
+      for (const locale of ['nl', 'en'] as const)
+        if (!value[field][locale].trim())
+          ctx.addIssue({
+            code: 'custom',
+            path: [field, locale],
+            message: 'Required before activating.',
+          });
   });
+
 export type StackFormValues = z.infer<typeof stackSchema>;
+
+/** Field names still empty, for the message shown when someone flips Active on an incomplete stack. */
+export function missingForPublish(value: Pick<StackFormValues, (typeof PUBLISH_REQUIRED)[number]>) {
+  const missing: string[] = [];
+  for (const field of PUBLISH_REQUIRED) {
+    if (!value[field].nl.trim()) missing.push(`${FIELD_LABELS[field]} (NL)`);
+    if (!value[field].en.trim()) missing.push(`${FIELD_LABELS[field]} (EN)`);
+  }
+  return missing;
+}

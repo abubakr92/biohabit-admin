@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Layers3, ListChecks, Tags, Users, LogOut, Leaf } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { useLogout } from '@/lib/hooks/use-auth';
+import { useLogout, useSession } from '@/lib/hooks/use-auth';
 const groups = [
   {
     label: 'Content',
@@ -19,6 +19,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const signOut = useLogout();
+  const session = useSession();
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-slate-200 bg-[#fbfcfc] lg:flex">
       <div className="flex h-20 items-center gap-3 border-b border-slate-200 px-6">
@@ -62,7 +63,9 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="border-t border-slate-200 p-4">
-        <p className="truncate px-2 text-xs font-medium text-slate-600">admin@biohabit.app</p>
+        <p className="truncate px-2 text-xs font-medium text-slate-600">
+          {session.data?.email ?? 'Signed in'}
+        </p>
         <button
           className="mt-3 flex h-9 w-full items-center gap-2 rounded-lg px-2 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-900"
           onClick={() => signOut.mutate(undefined, { onSuccess: () => router.push('/login') })}
