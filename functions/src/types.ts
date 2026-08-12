@@ -3,6 +3,8 @@ export type Daypart = 'morning' | 'midday' | 'evening';
 export type Mode = 'essential' | 'balanced' | 'full';
 export type TimingType = 'none' | 'exact' | 'window' | 'relative' | 'anchor';
 export type AccessLevel = 'free' | 'premium' | 'test' | 'admin';
+// TODO(client): placeholder values awaiting confirmation. Must stay identical to the Level type in
+// src/types/models.ts, which lists every declaration that has to change together.
 export type Level = 'beginner' | 'intermediate' | 'advanced';
 export interface Bilingual { nl: string; en: string }
 export interface StackInput { title: Bilingual; description: Bilingual; coherence: Bilingual; suggestedTiming: Bilingual; functionTag: FunctionTag; primaryLabel: string; supportingLabels: string[]; level: Level; isPremium: boolean; isActive: boolean }
