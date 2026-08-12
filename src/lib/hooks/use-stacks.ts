@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createStack,
+  deleteStack,
   duplicateStack,
   getStack,
   getStacks,
@@ -37,5 +38,15 @@ export function useDuplicateStack() {
   return useMutation({
     mutationFn: duplicateStack,
     onSuccess: () => qc.invalidateQueries({ queryKey: stackKeys.all }),
+  });
+}
+export function useDeleteStack() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteStack,
+    onSuccess: (_data, id) => {
+      qc.removeQueries({ queryKey: stackKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: stackKeys.all });
+    },
   });
 }

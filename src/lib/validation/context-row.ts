@@ -1,5 +1,9 @@
 import { z } from 'zod';
 const bilingual = z.object({ nl: z.string(), en: z.string() });
+const timeOrNull = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour HH:mm time.')
+  .nullable();
 export const contextRowSchema = z
   .object({
     microActionId: z.string().min(1),
@@ -12,13 +16,13 @@ export const contextRowSchema = z
     daypart: z.enum(['morning', 'midday', 'evening']),
     durationOverrideMin: z.number().min(1).nullable(),
     timingType: z.enum(['none', 'exact', 'window', 'relative', 'anchor']),
-    startTime: z.string().nullable(),
-    endTime: z.string().nullable(),
+    startTime: timeOrNull,
+    endTime: timeOrNull,
     relativeToContextId: z.string().nullable(),
     dependencyText: bilingual,
     contextEffect: bilingual,
     contextWarning: bilingual,
-    centreTime: z.string().nullable(),
+    centreTime: timeOrNull,
     elasticityMin: z.number().min(0).nullable(),
   })
   .superRefine((value, ctx) => {
@@ -26,6 +30,17 @@ export const contextRowSchema = z
       ctx.addIssue({ code: 'custom', path: ['startTime'], message: 'Start time is required.' });
     if (value.timingType === 'window' && !value.endTime)
       ctx.addIssue({ code: 'custom', path: ['endTime'], message: 'End time is required.' });
+    if (
+      value.timingType === 'window' &&
+      value.startTime &&
+      value.endTime &&
+      value.endTime <= value.startTime
+    )
+      ctx.addIssue({
+        code: 'custom',
+        path: ['endTime'],
+        message: 'End time must be after the start time.',
+      });
     if (value.timingType === 'relative') {
       if (!value.relativeToContextId)
         ctx.addIssue({

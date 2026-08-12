@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Check, Pencil, Trash2, X } from 'lucide-react';
 import type { Label } from '@/types/models';
 import { useUpdateLabel } from '@/lib/hooks/use-labels';
+import { applyFieldErrors } from '@/lib/api/field-errors';
 import { useToast } from '@/app/providers';
 const schema = z.object({
   key: z.string().regex(/^[a-z0-9-]+$/, 'Lowercase letters, numbers and hyphens only.'),
@@ -20,6 +21,7 @@ export function LabelRow({ label, onDelete }: { label: Label; onDelete: () => vo
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(schema),
@@ -33,7 +35,9 @@ export function LabelRow({ label, onDelete }: { label: Label; onDelete: () => vo
           setEditing(false);
           toast('Label updated.');
         },
-        onError: (e) => toast(e.message, 'error'),
+        onError: (error) => {
+          if (!applyFieldErrors(error, setError)) toast(error.message, 'error');
+        },
       },
     );
   return (

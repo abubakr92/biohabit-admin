@@ -1,14 +1,17 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Trash2 } from 'lucide-react';
 import type { Stack } from '@/types/models';
+import type { SubmitHelpers } from '@/types/api';
 import type { StackFormValues } from '@/lib/validation/stack';
+import { applyFieldErrors } from '@/lib/api/field-errors';
 import { PageHeader } from '@/components/layout/page-header';
+import { ConfirmDialog } from '@/components/data/confirm-dialog';
 import { StackDetailsForm } from './stack-details-form';
 import { CompositionTab } from './composition-tab';
 import { useLabels } from '@/lib/hooks/use-labels';
-import { useCreateStack, useUpdateStack } from '@/lib/hooks/use-stacks';
+import { useCreateStack, useDeleteStack, useUpdateStack } from '@/lib/hooks/use-stacks';
 import { useToast } from '@/app/providers';
 import { useRouter } from 'next/navigation';
 export function StackEditor({ stack }: { stack?: Stack }) {
@@ -17,21 +20,37 @@ export function StackEditor({ stack }: { stack?: Stack }) {
   const labels = useLabels();
   const create = useCreateStack();
   const update = useUpdateStack(stack?.id ?? '');
+  const remove = useDeleteStack();
   const [tab, setTab] = useState<'details' | 'composition'>('details');
-  const submit = (values: StackFormValues) => {
-    if (stack)
-      update.mutate(values, {
-        onSuccess: () => toast('Stack details saved.'),
-        onError: (e) => toast(e.message, 'error'),
-      });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const submit = (values: StackFormValues, { setError }: SubmitHelpers<StackFormValues>) => {
+    const onError = (error: Error) => {
+      if (applyFieldErrors(error, setError))
+        toast('Some fields need attention before this can be saved.', 'error');
+      else toast(error.message, 'error');
+    };
+    if (stack) update.mutate(values, { onSuccess: () => toast('Stack details saved.'), onError });
     else
       create.mutate(values, {
         onSuccess: (created) => {
           toast('Stack saved. Composition is now available.');
           router.replace(`/stacks/${created.id}`);
         },
-        onError: (e) => toast(e.message, 'error'),
+        onError,
       });
+  };
+  const destroy = () => {
+    if (!stack) return;
+    remove.mutate(stack.id, {
+      onSuccess: () => {
+        toast('Stack deleted.');
+        router.replace('/stacks');
+      },
+      onError: (error) => {
+        setConfirmDelete(false);
+        toast(error.message, 'error');
+      },
+    });
   };
   return (
     <>
@@ -48,7 +67,15 @@ export function StackEditor({ stack }: { stack?: Stack }) {
         description={
           stack
             ? 'Manage the stack details and the actions that compose each mode.'
-            : 'Start with the core details. You can add actions after the first save.'
+            : 'Start with a title. The remaining copy is required only when you publish.'
+        }
+        actions={
+          stack ? (
+            <button className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
+              <Trash2 className="size-4" />
+              Delete stack
+            </button>
+          ) : undefined
         }
       />
       <div className="mb-6 flex border-b border-slate-200">
@@ -78,6 +105,16 @@ export function StackEditor({ stack }: { stack?: Stack }) {
       ) : stack ? (
         <CompositionTab stack={stack} />
       ) : null}
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete this stack?"
+        description={`“${stack?.title.en ?? 'This stack'}” and its ${stack?.actionCount ?? 0} context rows will be removed permanently. The reusable micro-actions stay available.`}
+        confirmLabel="Delete stack"
+        danger
+        pending={remove.isPending}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={destroy}
+      />
     </>
   );
 }

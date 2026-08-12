@@ -1,14 +1,43 @@
 'use client';
-import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Save, Trash2, X } from 'lucide-react';
 import type { ContextRow } from '@/types/models';
+import type { SubmitHelpers } from '@/types/api';
 import { contextRowSchema, type ContextRowFormValues } from '@/lib/validation/context-row';
 import { derivedModes } from '@/lib/utils/modes';
 import { dayparts, labelFor, modes, timingTypes } from '@/lib/constants/enums';
 import { BilingualField } from '@/components/form/bilingual-field';
 import { TimingTypeFields } from '@/components/form/timing-type-fields';
+
+// Every field starts defined, so the checkboxes are controlled from the very first render rather
+// than flipping from undefined once the row loads.
+const toFormValues = (row: ContextRow | null): ContextRowFormValues => ({
+  microActionId: row?.microActionId ?? '',
+  microActionTitle: row?.microActionTitle ?? { nl: '', en: '' },
+  stackSortOrder: row?.stackSortOrder ?? 0,
+  priorityOrder: row?.priorityOrder ?? 1,
+  isOptional: row?.isOptional ?? false,
+  isActiveByDefault: row?.isActiveByDefault ?? true,
+  includedInMode: row?.includedInMode ?? 'essential',
+  daypart: row?.daypart ?? 'morning',
+  durationOverrideMin: row?.durationOverrideMin ?? null,
+  timingType: row?.timingType ?? 'none',
+  startTime: row?.startTime ?? null,
+  endTime: row?.endTime ?? null,
+  relativeToContextId: row?.relativeToContextId ?? null,
+  dependencyText: row?.dependencyText ?? { nl: '', en: '' },
+  contextEffect: row?.contextEffect ?? { nl: '', en: '' },
+  contextWarning: row?.contextWarning ?? { nl: '', en: '' },
+  centreTime: row?.centreTime ?? null,
+  elasticityMin: row?.elasticityMin ?? null,
+});
+
+/**
+ * Must be keyed by row id by the caller, so selecting a different row remounts the form with that
+ * row's values. Re-initialising via an effect instead would also fire on every background refetch,
+ * discarding whatever the editor had typed.
+ */
 export function ContextRowDrawer({
   row,
   rows,
@@ -23,7 +52,7 @@ export function ContextRowDrawer({
   open: boolean;
   pending?: boolean;
   onClose: () => void;
-  onSave: (values: ContextRowFormValues) => void;
+  onSave: (values: ContextRowFormValues, helpers: SubmitHelpers<ContextRowFormValues>) => void;
   onDelete: () => void;
 }) {
   const {
@@ -31,13 +60,13 @@ export function ContextRowDrawer({
     control,
     watch,
     setValue,
-    reset,
+    setError,
     handleSubmit,
     formState: { errors },
-  } = useForm<ContextRowFormValues>({ resolver: zodResolver(contextRowSchema) });
-  useEffect(() => {
-    if (row) reset({ ...row });
-  }, [row, reset]);
+  } = useForm<ContextRowFormValues>({
+    resolver: zodResolver(contextRowSchema),
+    defaultValues: toFormValues(row),
+  });
   if (!open || !row) return null;
   const timingType = watch('timingType');
   const included = watch('includedInMode');
@@ -69,7 +98,10 @@ export function ContextRowDrawer({
             <X className="size-5" />
           </button>
         </header>
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit(onSave)}>
+        <form
+          className="flex min-h-0 flex-1 flex-col"
+          onSubmit={handleSubmit((values) => onSave(values, { setError }))}
+        >
           <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-6 py-6">
             <section>
               <h3 className="mb-4 text-sm font-bold">Mode & order</h3>
@@ -225,7 +257,16 @@ export function ContextRowDrawer({
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <label className="text-sm font-semibold">
                   Centre time
-                  <input type="time" className="field mt-2" {...register('centreTime')} />
+                  <input
+                    type="time"
+                    className="field mt-2"
+                    {...register('centreTime', { setValueAs: (value) => value || null })}
+                  />
+                  {errors.centreTime && (
+                    <span className="mt-1 block text-xs text-red-600">
+                      {errors.centreTime.message}
+                    </span>
+                  )}
                 </label>
                 <Controller
                   name="elasticityMin"

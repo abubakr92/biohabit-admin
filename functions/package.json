@@ -2,15 +2,24 @@
   "name": "biohabit-functions",
   "private": true,
   "main": "lib/index.js",
-  "engines": { "node": "22" },
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
+    "test": "npm run build && node --test \"test/schemas.test.js\"",
+    "test:rules": "node --test \"test/rules.test.js\"",
+    "test:store": "npm run build && node --test \"test/store.test.js\"",
+    "test:emulated": "npm run build && node --test \"test/rules.test.js\" \"test/store.test.js\" \"test/api.test.js\"",
     "serve": "npm run build && firebase emulators:start --only functions,firestore,auth",
     "seed:emulator": "npm run build && node lib/scripts/seed-emulator.js",
     "seed:live": "npm run build && node lib/scripts/seed-live.js",
     "inspect:live": "npm run build && node lib/scripts/inspect-live.js",
-    "set-admin": "npm run build && node lib/scripts/set-admin.js"
+    "check-users": "npm run build && node lib/scripts/check-users.js",
+    "backfill-users": "npm run build && node lib/scripts/backfill-users.js",
+    "set-admin": "npm run build && node lib/scripts/set-admin.js",
+    "test:api": "node --test \"test/api.test.js\""
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -20,8 +29,11 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
+    "firebase": "^12.17.1",
+    "firebase-tools": "^15.26.0",
     "typescript": "^5.9.3"
   }
 }

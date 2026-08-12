@@ -40,6 +40,9 @@ yarn-error.log*
 # local environment files are private; commit only the documented template
 .env*
 !.env.example
+# functions/.env is non-secret deploy config (CORS origins). It must be committed: deploying
+# without it leaves the API rejecting every browser origin. Secrets belong in Secret Manager.
+!functions/.env
 
 # vercel
 .vercel

@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import type { MicroAction } from '@/types/models';
+import type { SubmitHelpers } from '@/types/api';
 import type { MicroActionFormValues } from '@/lib/validation/micro-action';
+import { applyFieldErrors } from '@/lib/api/field-errors';
 import { useLabels } from '@/lib/hooks/use-labels';
 import { useCreateMicroAction, useUpdateMicroAction } from '@/lib/hooks/use-micro-actions';
 import { useToast } from '@/app/providers';
@@ -15,19 +17,23 @@ export function MicroActionEditor({ action }: { action?: MicroAction }) {
   const update = useUpdateMicroAction(action?.id ?? '');
   const router = useRouter();
   const toast = useToast();
-  const submit = (values: MicroActionFormValues) => {
-    if (action)
-      update.mutate(values, {
-        onSuccess: () => toast('Micro-action saved.'),
-        onError: (e) => toast(e.message, 'error'),
-      });
+  const submit = (
+    values: MicroActionFormValues,
+    { setError }: SubmitHelpers<MicroActionFormValues>,
+  ) => {
+    const onError = (error: Error) => {
+      if (applyFieldErrors(error, setError))
+        toast('Some fields need attention before this can be saved.', 'error');
+      else toast(error.message, 'error');
+    };
+    if (action) update.mutate(values, { onSuccess: () => toast('Micro-action saved.'), onError });
     else
       create.mutate(values, {
         onSuccess: (created) => {
           toast('Micro-action created.');
           router.replace(`/micro-actions/${created.id}`);
         },
-        onError: (e) => toast(e.message, 'error'),
+        onError,
       });
   };
   return (

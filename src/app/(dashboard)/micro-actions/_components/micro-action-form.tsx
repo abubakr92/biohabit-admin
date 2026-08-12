@@ -3,6 +3,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Save } from 'lucide-react';
 import type { Label, MicroAction } from '@/types/models';
+import type { SubmitHelpers } from '@/types/api';
 import { microActionSchema, type MicroActionFormValues } from '@/lib/validation/micro-action';
 import { BilingualField } from '@/components/form/bilingual-field';
 import { FormSection } from '@/components/form/form-section';
@@ -26,12 +27,13 @@ export function MicroActionForm({
   action?: MicroAction;
   labels: Label[];
   pending?: boolean;
-  onSubmit: (values: MicroActionFormValues) => void;
+  onSubmit: (values: MicroActionFormValues, helpers: SubmitHelpers<MicroActionFormValues>) => void;
 }) {
   const {
     register,
     control,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<MicroActionFormValues>({
     resolver: zodResolver(microActionSchema),
@@ -48,7 +50,7 @@ export function MicroActionForm({
       : empty,
   });
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form onSubmit={handleSubmit((values) => onSubmit(values, { setError }))}>
       <div className="card px-6 sm:px-8">
         <FormSection
           title="Action copy"

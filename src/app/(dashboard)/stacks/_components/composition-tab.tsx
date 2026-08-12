@@ -17,6 +17,8 @@ import {
 } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
 import type { MicroAction, Mode, Stack } from '@/types/models';
+import type { SubmitHelpers } from '@/types/api';
+import { applyFieldErrors } from '@/lib/api/field-errors';
 import {
   useContextRows,
   useCreateContextRow,
@@ -100,16 +102,27 @@ export function CompositionTab({ stack }: { stack: Stack }) {
       { onSuccess: () => toast('Order updated.'), onError: (e) => toast(e.message, 'error') },
     );
   };
-  const save = (values: ContextRowFormValues) => {
+  const save = (
+    values: ContextRowFormValues,
+    { setError }: SubmitHelpers<ContextRowFormValues>,
+  ) => {
     if (!selected) return;
+    // stackSortOrder is owned by drag-and-drop; sending the value this form loaded would
+    // silently undo any reorder made while the drawer was open.
+    const input: Partial<ContextRowFormValues> = { ...values };
+    delete input.stackSortOrder;
     update.mutate(
-      { id: selected.id, input: values },
+      { id: selected.id, input },
       {
         onSuccess: () => {
           setSelectedId(null);
           toast('Context row saved.');
         },
-        onError: (e) => toast(e.message, 'error'),
+        onError: (error) => {
+          if (applyFieldErrors(error, setError))
+            toast('Some fields need attention before this can be saved.', 'error');
+          else toast(error.message, 'error');
+        },
       },
     );
   };
@@ -187,6 +200,7 @@ export function CompositionTab({ stack }: { stack: Stack }) {
         onSelect={addAction}
       />
       <ContextRowDrawer
+        key={selected?.id ?? 'closed'}
         open={Boolean(selected)}
         row={selected}
         rows={rows}

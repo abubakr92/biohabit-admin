@@ -13,3 +13,5 @@ export const updateStack = (id: string, input: Partial<StackInput>) =>
   apiRequest<Stack>(endpoints.stacks.detail(id), { method: 'PATCH', body: JSON.stringify(input) });
 export const duplicateStack = (id: string) =>
   apiRequest<Stack>(endpoints.stacks.duplicate(id), { method: 'POST' });
+export const deleteStack = (id: string) =>
+  apiRequest<void>(endpoints.stacks.detail(id), { method: 'DELETE' });

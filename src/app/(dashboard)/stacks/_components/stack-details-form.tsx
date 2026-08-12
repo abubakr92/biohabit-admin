@@ -6,7 +6,8 @@ import { BilingualField } from '@/components/form/bilingual-field';
 import { FormSection } from '@/components/form/form-section';
 import { LabelMultiSelect } from '@/components/form/label-multi-select';
 import { functionTags, labelFor, levels } from '@/lib/constants/enums';
-import { stackSchema, type StackFormValues } from '@/lib/validation/stack';
+import { missingForPublish, stackSchema, type StackFormValues } from '@/lib/validation/stack';
+import type { SubmitHelpers } from '@/types/api';
 import type { Label, Stack } from '@/types/models';
 const empty: StackFormValues = {
   title: { nl: '', en: '' },
@@ -30,7 +31,7 @@ export function StackDetailsForm({
   stack?: Stack;
   labels: Label[];
   pending?: boolean;
-  onSubmit: (values: StackFormValues) => void;
+  onSubmit: (values: StackFormValues, helpers: SubmitHelpers<StackFormValues>) => void;
   onBlockedActive: (message: string) => void;
 }) {
   const {
@@ -38,6 +39,7 @@ export function StackDetailsForm({
     control,
     handleSubmit,
     getValues,
+    setError,
     formState: { errors },
   } = useForm<StackFormValues>({
     resolver: zodResolver(stackSchema),
@@ -58,23 +60,13 @@ export function StackDetailsForm({
   });
   const activate = (next: boolean, change: (value: boolean) => void) => {
     if (!next) return change(false);
-    const value = getValues();
-    const missing: string[] = [];
-    for (const [field, content] of Object.entries({
-      title: value.title,
-      description: value.description,
-      coherence: value.coherence,
-      suggestedTiming: value.suggestedTiming,
-    })) {
-      if (!content.nl.trim()) missing.push(`${field} (NL)`);
-      if (!content.en.trim()) missing.push(`${field} (EN)`);
-    }
+    const missing = missingForPublish(getValues());
     if (missing.length)
       return onBlockedActive(`Complete these fields before activating: ${missing.join(', ')}.`);
     change(true);
   };
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form onSubmit={handleSubmit((values) => onSubmit(values, { setError }))}>
       <div className="card px-6 sm:px-8">
         <FormSection
           title="Identity"
@@ -149,9 +141,6 @@ export function StackDetailsForm({
                   </option>
                 ))}
               </select>
-              <span className="mt-1 block text-xs font-normal text-slate-400">
-                TODO(client): confirm allowed levels before launch.
-              </span>
             </label>
             <div className="md:col-span-2">
               <p className="mb-2 text-sm font-semibold">Supporting labels</p>

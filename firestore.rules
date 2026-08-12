@@ -2,17 +2,16 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function isAdmin() {
-      return signedIn() && (
-        request.auth.token.admin == true ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accessLevel == 'admin'
-      );
-    }
+    // The `admin` custom claim is the authority here. Reading a users/{uid} profile instead would spend one of the
+    // ten document-access calls a request is allowed and would deny outright for members without a profile document.
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+
     match /stacks/{stackId} {
       allow read: if isAdmin() || (signedIn() && resource.data.isActive == true);
       allow write: if false;
     }
     match /contextRows/{rowId} {
+      // Members read context rows one stack at a time; the repeated get() resolves to a single cached access call.
       allow read: if isAdmin() || (signedIn() && get(/databases/$(database)/documents/stacks/$(resource.data.stackId)).data.isActive == true);
       allow write: if false;
     }
@@ -27,6 +26,10 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow write: if false;
+    }
+    // Admin action history is written and read only by the server.
+    match /auditLogs/{entryId} {
+      allow read, write: if false;
     }
   }
 }

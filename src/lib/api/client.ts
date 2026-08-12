@@ -1,6 +1,5 @@
 import { env } from '@/config/env';
 import type { ApiFieldErrors } from '@/types/api';
-import { mockRequest } from '@/lib/mock/adapter';
 import { getFirebaseAuthToken } from '@/lib/firebase/client';
 
 export class ApiError extends Error {
@@ -15,18 +14,15 @@ export class ApiError extends Error {
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  if (env.useMocks && !path.startsWith('/auth/')) return mockRequest<T>(path, init);
+  // Compared against the inlined literal rather than env.useMocks so the bundler can prove the
+  // branch dead and drop the mock adapter and its seed data from production builds entirely.
+  if (process.env.NEXT_PUBLIC_USE_MOCKS === 'true')
+    return (await import('@/lib/mock/adapter')).mockRequest<T>(path, init);
   const headers = new Headers({ 'Content-Type': 'application/json', ...init.headers });
-  if (!env.useMocks) {
-    const token = await getFirebaseAuthToken();
-    if (token) headers.set('Authorization', `Bearer ${token}`);
-  }
-  const baseUrl = env.useMocks && path.startsWith('/auth/') ? '/api' : env.apiBaseUrl;
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const token = await getFirebaseAuthToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  // The API authorises on the bearer token alone, so no cookies are sent cross-origin.
+  const response = await fetch(`${env.apiBaseUrl}${path}`, { ...init, headers });
   const body = (await response.json().catch(() => ({}))) as {
     message?: string;
     fieldErrors?: ApiFieldErrors;
