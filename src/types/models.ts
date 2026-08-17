@@ -2,7 +2,23 @@ export type FunctionTag = 'regulate' | 'activate' | 'build' | 'recover';
 export type Daypart = 'morning' | 'midday' | 'evening';
 export type Mode = 'essential' | 'balanced' | 'full';
 export type TimingType = 'none' | 'exact' | 'window' | 'relative' | 'anchor';
-export type AccessLevel = 'free' | 'premium' | 'test' | 'admin';
+// `user` is written by the mobile app's signup flow; the other four are this panel's own
+// vocabulary. The two systems have not agreed on one set yet — see the note on AppUser.
+export type AccessLevel = 'free' | 'premium' | 'test' | 'admin' | 'user';
+
+/**
+ * A timestamp as it actually arrives from the API. Documents this panel writes carry ISO strings;
+ * documents the mobile app writes carry Firestore Timestamps, which serialise as
+ * `{_seconds, _nanoseconds}`. Read these through `toDate` in lib/utils/format rather than passing
+ * them to `new Date()` directly.
+ */
+export type ApiDate =
+  | string
+  | number
+  | Date
+  | { _seconds: number; _nanoseconds?: number }
+  | { seconds: number; nanoseconds?: number }
+  | null;
 
 // TODO(client): allowed values not yet specified — confirm before launch.
 // `beginner | intermediate | advanced` is a placeholder. Nothing reads it in this codebase; it is
@@ -85,12 +101,21 @@ export interface Label {
   usageCount: number;
 }
 
+/**
+ * Written by two systems. This panel creates the admin profile; the mobile app creates member
+ * profiles through its own signup and email-OTP flow, which is why timestamps arrive in either
+ * shape and why `name`, `avatarUrl` and `verified` exist without the panel having asked for them.
+ */
 export interface AppUser {
   id: string;
   email: string;
   accessLevel: AccessLevel;
   rhythmDaysCount: number;
-  unlockedAt: string | null;
-  lastCheckOffAt: string | null;
-  createdAt: string;
+  unlockedAt: ApiDate;
+  lastCheckOffAt: ApiDate;
+  createdAt: ApiDate;
+  // Set by the mobile app only; absent on profiles this panel created.
+  name?: string;
+  avatarUrl?: string | null;
+  verified?: boolean;
 }

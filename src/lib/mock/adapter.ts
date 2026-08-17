@@ -1,4 +1,5 @@
 import { ApiError } from '@/lib/api/client';
+import { toDate } from '@/lib/utils/format';
 import type { ContextRow, Label, MicroAction, Stack } from '@/types/models';
 import { seedStacks } from './data/stacks';
 import { seedMicroActions } from './data/micro-actions';
@@ -210,8 +211,7 @@ export async function mockRequest<T>(fullPath: string, init: RequestInit = {}): 
     const matching = users.filter(
       (user) =>
         status === 'all' ||
-        (status === 'silent' &&
-          (!user.lastCheckOffAt || new Date(user.lastCheckOffAt).getTime() <= silentBefore)) ||
+        (status === 'silent' && (toDate(user.lastCheckOffAt)?.getTime() ?? 0) <= silentBefore) ||
         (status === 'unlocked' && Boolean(user.unlockedAt)) ||
         (status === 'locked' && !user.unlockedAt),
     );
