@@ -10,6 +10,6 @@ export const microActionSchema = z.object({
   warning: bilingual,
   labels: z.array(z.string()).min(1, 'Choose at least one label.'),
   durationMin: z.number().min(1).max(60),
-  level: z.enum(['beginner', 'intermediate', 'advanced']),
+  level: z.enum(['essential', 'balanced', 'full']),
 });
 export type MicroActionFormValues = z.infer<typeof microActionSchema>;

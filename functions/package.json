@@ -19,7 +19,8 @@
     "check-users": "npm run build && node lib/scripts/check-users.js",
     "backfill-users": "npm run build && node lib/scripts/backfill-users.js",
     "set-admin": "npm run build && node lib/scripts/set-admin.js",
-    "test:api": "node --test \"test/api.test.js\""
+    "test:api": "node --test \"test/api.test.js\"",
+    "migrate:classification": "npm run build && node lib/scripts/migrate-classification.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

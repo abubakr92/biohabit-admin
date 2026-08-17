@@ -29,18 +29,22 @@ Browser calls are restricted by CORS to the origins listed in `ADMIN_ORIGINS` (s
 
 ## Stacks
 
-| Method | Path                    | Request                                                            | Response                                      |
-| ------ | ----------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
-| GET    | `/stacks`               | Optional query filters: `search`, `functionTag`, `label`, `active` | `Stack[]`                                     |
-| GET    | `/stacks/:id`           | none                                                               | `Stack`                                       |
-| POST   | `/stacks`               | `StackInput`                                                       | `Stack`                                       |
-| PATCH  | `/stacks/:id`           | `Partial<StackInput>`                                              | `Stack`                                       |
-| DELETE | `/stacks/:id`           | none                                                               | `204`; also deletes the stack's context rows  |
-| POST   | `/stacks/:id/duplicate` | none                                                               | New inactive `Stack` with copied context rows |
+| Method | Path                    | Request                                                                       | Response                                      |
+| ------ | ----------------------- | ----------------------------------------------------------------------------- | --------------------------------------------- |
+| GET    | `/stacks`               | Optional query filters: `search`, `functionTag`, `label`, `daypart`, `active` | `Stack[]`                                     |
+| GET    | `/stacks/:id`           | none                                                                          | `Stack`                                       |
+| POST   | `/stacks`               | `StackInput`                                                                  | `Stack`                                       |
+| PATCH  | `/stacks/:id`           | `Partial<StackInput>`                                                         | `Stack`                                       |
+| DELETE | `/stacks/:id`           | none                                                                          | `204`; also deletes the stack's context rows  |
+| POST   | `/stacks/:id/duplicate` | none                                                                          | New inactive `Stack` with copied context rows |
 
-`StackInput` contains `title`, `description`, `coherence`, `suggestedTiming`, `functionTag`, `primaryLabel`, `supportingLabels`, `level`, `isPremium`, and `isActive`. The server supplies `id`, timestamps, `actionCount`, and derived `modeDurations`.
+`StackInput` contains `title`, `description`, `coherence`, `suggestedTiming`, `functionTag`, `primaryLabel`, `supportingLabels`, `level`, `daypart`, `isPremium`, and `isActive`. The server supplies `id`, timestamps, `actionCount`, and derived `modeDurations`.
 
-**Draft rule.** A stack needs only `title` (NL and EN) and a `primaryLabel` to be saved. `description`, `coherence` and `suggestedTiming` become required in both languages when `isActive` is `true`, and a request that activates an incomplete stack returns `422` with the missing locales listed per field. The client schema in `src/lib/validation/stack.ts` mirrors this exactly.
+**Classification.** Stacks are classified on three axes: `primaryLabel` (plus `supportingLabels`), `functionTag`, and `daypart` (`morning | midday | evening`). `daypart` is `null` on a draft and required to publish. `level` is a separate quality — the mode tier the stack is written for.
+
+**`level` and `Mode` share three words but are not the same field.** `level` (`essential | balanced | full`) describes how demanding the stack is overall; a context row's `includedInMode` decides from which mode that row starts appearing. Every stack still spans all three modes regardless of its `level`.
+
+**Draft rule.** A stack needs only `title` (NL and EN) and a `primaryLabel` to be saved. `description`, `coherence`, `suggestedTiming` (both languages) and `daypart` become required when `isActive` is `true`; activating an incomplete stack returns `422` listing each missing field. The client schema in `src/lib/validation/stack.ts` mirrors this exactly.
 
 Duplicating a stack rewrites `relativeToContextId` on the copied rows to point at the copies, so a duplicate never references its source.
 

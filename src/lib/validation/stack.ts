@@ -23,7 +23,8 @@ export const stackSchema = z
     functionTag: z.enum(['regulate', 'activate', 'build', 'recover']),
     primaryLabel: z.string().min(1, 'Choose a primary label.'),
     supportingLabels: z.array(z.string()),
-    level: z.enum(['beginner', 'intermediate', 'advanced']),
+    level: z.enum(['essential', 'balanced', 'full']),
+    daypart: z.enum(['morning', 'midday', 'evening']).nullable(),
     isPremium: z.boolean(),
     isActive: z.boolean(),
   })
@@ -37,16 +38,25 @@ export const stackSchema = z
             path: [field, locale],
             message: 'Required before activating.',
           });
+    if (!value.daypart)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['daypart'],
+        message: 'Choose a daypart before activating.',
+      });
   });
 
 export type StackFormValues = z.infer<typeof stackSchema>;
 
 /** Field names still empty, for the message shown when someone flips Active on an incomplete stack. */
-export function missingForPublish(value: Pick<StackFormValues, (typeof PUBLISH_REQUIRED)[number]>) {
+export function missingForPublish(
+  value: Pick<StackFormValues, (typeof PUBLISH_REQUIRED)[number] | 'daypart'>,
+) {
   const missing: string[] = [];
   for (const field of PUBLISH_REQUIRED) {
     if (!value[field].nl.trim()) missing.push(`${FIELD_LABELS[field]} (NL)`);
     if (!value[field].en.trim()) missing.push(`${FIELD_LABELS[field]} (EN)`);
   }
+  if (!value.daypart) missing.push('Daypart');
   return missing;
 }

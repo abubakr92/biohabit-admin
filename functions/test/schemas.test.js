@@ -17,7 +17,7 @@ const draftStack = (overrides = {}) => ({
   functionTag: 'regulate',
   primaryLabel: 'focus',
   supportingLabels: [],
-  level: 'beginner',
+  level: 'essential',
   isPremium: false,
   isActive: false,
   ...overrides,
@@ -59,12 +59,13 @@ test('a stack cannot be saved without a title', () => {
   assert.deepEqual(Object.keys(fields(result)).sort(), ['title.en', 'title.nl']);
 });
 
-test('activating requires the full bilingual set, reported per locale', () => {
+test('activating requires the full bilingual set and a daypart, reported per field', () => {
   const result = stackSchema.safeParse(draftStack({ isActive: true }));
   assert.equal(result.success, false);
   assert.deepEqual(Object.keys(fields(result)).sort(), [
     'coherence.en',
     'coherence.nl',
+    'daypart',
     'description.en',
     'description.nl',
     'suggestedTiming.en',
@@ -72,14 +73,33 @@ test('activating requires the full bilingual set, reported per locale', () => {
   ]);
 });
 
-test('an activated stack with complete copy is accepted', () => {
-  const complete = draftStack({
+const publishable = (overrides = {}) =>
+  draftStack({
     isActive: true,
     description: bilingual('text'),
     coherence: bilingual('text'),
     suggestedTiming: bilingual('text'),
+    daypart: 'morning',
+    ...overrides,
   });
-  assert.equal(stackSchema.safeParse(complete).success, true);
+
+test('an activated stack with complete copy and a daypart is accepted', () => {
+  assert.equal(stackSchema.safeParse(publishable()).success, true);
+});
+
+// Daypart is the third classification axis, alongside label and function. A draft may leave it
+// unset so half-written stacks stay saveable; publishing without one is refused.
+test('daypart is optional on a draft and required to publish', () => {
+  assert.equal(stackSchema.safeParse(draftStack()).success, true, 'draft without a daypart');
+  assert.equal(stackSchema.parse(draftStack()).daypart, null, 'absent daypart defaults to null');
+
+  const result = stackSchema.safeParse(publishable({ daypart: null }));
+  assert.equal(result.success, false);
+  assert.deepEqual(Object.keys(fields(result)), ['daypart']);
+
+  for (const daypart of ['morning', 'midday', 'evening'])
+    assert.equal(stackSchema.safeParse(publishable({ daypart })).success, true, daypart);
+  assert.equal(stackSchema.safeParse(publishable({ daypart: 'night' })).success, false);
 });
 
 test('timing fields reject anything that is not HH:mm', () => {
@@ -122,7 +142,7 @@ test('label keys are restricted to lowercase, digits and hyphens', () => {
 // which is the point: it is the prompt to change the panel's copy of the enum in the same pass.
 // See the change list on Level in src/types/models.ts.
 test('level accepts exactly the agreed scale, on stacks and micro-actions alike', () => {
-  const accepted = ['beginner', 'intermediate', 'advanced'];
+  const accepted = ['essential', 'balanced', 'full'];
   for (const level of accepted) {
     assert.equal(stackSchema.safeParse(draftStack({ level })).success, true, `stack: ${level}`);
     assert.equal(
@@ -139,7 +159,7 @@ test('level accepts exactly the agreed scale, on stacks and micro-actions alike'
       `micro-action: ${level}`,
     );
   }
-  assert.equal(stackSchema.safeParse(draftStack({ level: 'expert' })).success, false);
+  assert.equal(stackSchema.safeParse(draftStack({ level: 'beginner' })).success, false);
 });
 
 test('the users query caps page size and defaults to the first page', () => {

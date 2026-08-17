@@ -38,7 +38,7 @@ const draft = (overrides = {}) => ({
   functionTag: 'regulate',
   primaryLabel: 'brain',
   supportingLabels: [],
-  level: 'beginner',
+  level: 'essential',
   isPremium: false,
   isActive: false,
   ...overrides,
@@ -113,6 +113,7 @@ test('B3 — a title-only draft is created, then activation reports missing copy
     [
       'coherence.en',
       'coherence.nl',
+      'daypart',
       'description.en',
       'description.nl',
       'suggestedTiming.en',
@@ -128,10 +129,12 @@ test('B3 — a title-only draft is created, then activation reports missing copy
       description: bilingual('d'),
       coherence: bilingual('c'),
       suggestedTiming: bilingual('s'),
+      daypart: 'morning',
     },
   });
   assert.equal(completed.status, 200);
   assert.equal(completed.body.isActive, true);
+  assert.equal(completed.body.daypart, 'morning');
   assert.equal((await call(`/stacks/${id}`, { method: 'DELETE' })).status, 204);
 });
 

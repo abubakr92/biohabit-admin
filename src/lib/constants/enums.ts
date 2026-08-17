@@ -4,8 +4,7 @@ export const functionTags: FunctionTag[] = ['regulate', 'activate', 'build', 're
 export const dayparts: Daypart[] = ['morning', 'midday', 'evening'];
 export const modes: Mode[] = ['essential', 'balanced', 'full'];
 export const timingTypes: TimingType[] = ['none', 'exact', 'window', 'relative', 'anchor'];
-// TODO(client): confirm allowed levels before launch. See the full change list on Level in
-// src/types/models.ts — all seven declarations must move together.
-export const levels: Level[] = ['beginner', 'intermediate', 'advanced'];
+// Same three words as `modes`, but a different question — see the Level type in types/models.ts.
+export const levels: Level[] = ['essential', 'balanced', 'full'];
 
 export const labelFor = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);

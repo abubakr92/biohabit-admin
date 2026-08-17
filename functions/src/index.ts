@@ -58,8 +58,8 @@ app.use((request, response, next) => {
 app.get('/auth/session', route(async (_request, response) => { response.json({ user: response.locals.admin }); }));
 
 app.get('/stacks', route(async (request, response) => {
-  const search = String(request.query.search ?? '').toLowerCase(); const functionTag = String(request.query.functionTag ?? ''); const label = String(request.query.label ?? ''); const active = String(request.query.active ?? '');
-  const data = (await store.listStacks()).filter((stack) => (!search || `${stack.title.en} ${stack.title.nl}`.toLowerCase().includes(search)) && (!functionTag || stack.functionTag === functionTag) && (!label || stack.primaryLabel === label || stack.supportingLabels.includes(label)) && (!active || stack.isActive === (active === 'true' || active === 'active')));
+  const search = String(request.query.search ?? '').toLowerCase(); const functionTag = String(request.query.functionTag ?? ''); const label = String(request.query.label ?? ''); const active = String(request.query.active ?? ''); const daypart = String(request.query.daypart ?? '');
+  const data = (await store.listStacks()).filter((stack) => (!search || `${stack.title.en} ${stack.title.nl}`.toLowerCase().includes(search)) && (!functionTag || stack.functionTag === functionTag) && (!label || stack.primaryLabel === label || stack.supportingLabels.includes(label)) && (!daypart || stack.daypart === daypart) && (!active || stack.isActive === (active === 'true' || active === 'active')));
   response.json(data);
 }));
 app.post('/stacks', route(async (request, response) => { const input = stackSchema.parse(request.body) as StackInput; const stack = await store.createStack(input); await audit(response, 'create', 'stack', stack.id); response.status(201).json(stack); }));
@@ -101,7 +101,7 @@ function fieldErrors(error: ZodError): Record<string, string[]> {
   for (const issue of error.issues) { const key = issue.path.join('.') || '_'; (result[key] ??= []).push(issue.message); }
   return result;
 }
-function stackInput(stack: StackInput): StackInput { return { title: stack.title, description: stack.description, coherence: stack.coherence, suggestedTiming: stack.suggestedTiming, functionTag: stack.functionTag, primaryLabel: stack.primaryLabel, supportingLabels: stack.supportingLabels, level: stack.level, isPremium: stack.isPremium, isActive: stack.isActive }; }
+function stackInput(stack: StackInput): StackInput { return { title: stack.title, description: stack.description, coherence: stack.coherence, suggestedTiming: stack.suggestedTiming, functionTag: stack.functionTag, primaryLabel: stack.primaryLabel, supportingLabels: stack.supportingLabels, level: stack.level, daypart: stack.daypart ?? null, isPremium: stack.isPremium, isActive: stack.isActive }; }
 function microActionInput(action: MicroActionInput): MicroActionInput { return { title: action.title, effect: action.effect, howTo: action.howTo, warning: action.warning, labels: action.labels, durationMin: action.durationMin, level: action.level }; }
 function contextInput(row: ContextRowInput): ContextRowInput { return { microActionId: row.microActionId, microActionTitle: row.microActionTitle, stackSortOrder: row.stackSortOrder, priorityOrder: row.priorityOrder, isOptional: row.isOptional, isActiveByDefault: row.isActiveByDefault, includedInMode: row.includedInMode, daypart: row.daypart, durationOverrideMin: row.durationOverrideMin, timingType: row.timingType, startTime: row.startTime, endTime: row.endTime, relativeToContextId: row.relativeToContextId, dependencyText: row.dependencyText, contextEffect: row.contextEffect, contextWarning: row.contextWarning, centreTime: row.centreTime, elasticityMin: row.elasticityMin }; }
 
