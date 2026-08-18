@@ -12,13 +12,12 @@ import {
   useUser,
   useUserActivity,
   useUserCheckOffs,
-  useUserRoutines,
+  useUserPreferences,
 } from '@/lib/hooks/use-users';
 import { labelFor } from '@/lib/constants/enums';
 import { formatDate } from '@/lib/utils/format';
 import { useToast } from '@/app/providers';
-import { UserRoutinesTable } from './_components/user-routines-table';
-import { ActivityHeatmap } from './_components/activity-heatmap';
+import { ActivityStrip } from './_components/activity-strip';
 import { CheckOffList } from './_components/check-off-list';
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -33,7 +32,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 export default function UserPage() {
   const { id } = useParams<{ id: string }>();
   const user = useUser(id);
-  const routines = useUserRoutines(id);
+  const preferences = useUserPreferences(id);
   const activity = useUserActivity(id);
   const checkOffs = useUserCheckOffs(id);
   const unlock = useUnlockUser();
@@ -50,7 +49,7 @@ export default function UserPage() {
   // A member who signed up through the app carries a name; profiles created here do not.
   const registered = Boolean(item.name || item.verified);
   const rhythm = Math.min(item.rhythmDaysCount, 7);
-  const rows = checkOffs.data?.pages.flatMap((page) => page.checkOffs) ?? [];
+  const days = checkOffs.data?.pages.flatMap((page) => page.days) ?? [];
 
   return (
     <>
@@ -105,16 +104,20 @@ export default function UserPage() {
         </dl>
       </div>
 
-      <section className="mb-6">
-        <h2 className="mb-3 font-semibold">Routines</h2>
-        {routines.isLoading ? (
-          <LoadingState rows={3} />
-        ) : routines.isError ? (
-          <ErrorState message={routines.error.message} retry={() => routines.refetch()} />
-        ) : (
-          <UserRoutinesTable routines={routines.data ?? []} />
-        )}
-      </section>
+      {preferences.data?.selected && (
+        <div className="card mb-6 p-5">
+          <h2 className="font-semibold">Onboarding preferences</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            What the member chose in the app. These map onto the same axes stacks are classified by.
+          </p>
+          <dl className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <Fact label="Need (function)">{labelFor(preferences.data.need ?? '—')}</Fact>
+            <Fact label="Timing (daypart)">{labelFor(preferences.data.timing ?? '—')}</Fact>
+            <Fact label="Focus (label)">{labelFor(preferences.data.focus ?? '—')}</Fact>
+            <Fact label="Budget (mode)">{labelFor(preferences.data.budget ?? '—')}</Fact>
+          </dl>
+        </div>
+      )}
 
       <section className="mb-6">
         <h2 className="mb-3 font-semibold">Activity</h2>
@@ -123,7 +126,7 @@ export default function UserPage() {
         ) : activity.isError ? (
           <ErrorState message={activity.error.message} retry={() => activity.refetch()} />
         ) : activity.data ? (
-          <ActivityHeatmap activity={activity.data} />
+          <ActivityStrip activity={activity.data} />
         ) : null}
       </section>
 
@@ -135,7 +138,7 @@ export default function UserPage() {
           <ErrorState message={checkOffs.error.message} retry={() => checkOffs.refetch()} />
         ) : (
           <CheckOffList
-            checkOffs={rows}
+            days={days}
             hasMore={Boolean(checkOffs.hasNextPage)}
             loadingMore={checkOffs.isFetchingNextPage}
             onLoadMore={() => checkOffs.fetchNextPage()}

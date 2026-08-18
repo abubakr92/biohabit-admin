@@ -7,7 +7,8 @@ import { seedContextRows } from './data/context-rows';
 import { seedLabels } from './data/labels';
 import { seedUsers } from './data/users';
 import { divergenceFor, seedRoutineActions, seedRoutines } from './data/routines';
-import { routineCompletion, seedCheckOffs, userCompletion } from './data/completions';
+import { routineCompletion } from './data/completions';
+import { mockCheckOffDays, mockPreferences } from './data/check-offs';
 
 let stacks = structuredClone(seedStacks);
 let microActions = structuredClone(seedMicroActions);
@@ -300,36 +301,46 @@ export async function mockRequest<T>(fullPath: string, init: RequestInit = {}): 
   if (userRoutines && method === 'GET')
     return structuredClone(routines.filter((routine) => routine.userId === userRoutines[1])) as T;
 
+  const userPreferences = path.match(/^\/users\/([^/]+)\/preferences$/);
+  if (userPreferences && method === 'GET') {
+    if (!users.some((user) => user.id === userPreferences[1]))
+      throw new ApiError(404, 'User not found.');
+    return structuredClone(mockPreferences(userPreferences[1])) as T;
+  }
+
+  // Mirrors what the app actually writes: one entry per day, holding the steps ticked that day
+  // grouped by the stack they belong to.
+  const userCheckOffs = path.match(/^\/users\/([^/]+)\/check-offs$/);
+  if (userCheckOffs && method === 'GET') {
+    const limit = Number(query.get('limit') ?? 30);
+    const cursor = query.get('cursor');
+    const mine = mockCheckOffDays(userCheckOffs[1]);
+    const start = cursor ? mine.findIndex((day) => day.day === cursor) + 1 : 0;
+    const page = mine.slice(start, start + limit);
+    return structuredClone({
+      days: page,
+      nextCursor: start + limit < mine.length ? (page[page.length - 1]?.day ?? null) : null,
+    }) as T;
+  }
+
   const userActivity = path.match(/^\/users\/([^/]+)\/activity$/);
   if (userActivity && method === 'GET') {
-    const days = userCompletion(userActivity[1], Number(query.get('days') ?? 30));
+    const requested = Number(query.get('days') ?? 30);
+    const byDay = new Map(mockCheckOffDays(userActivity[1]).map((day) => [day.day, day.stepCount]));
+    const days = Array.from({ length: requested }, (_, offset) => ({
+      date: new Date(Date.now() - (requested - 1 - offset) * 86_400_000).toISOString().slice(0, 10),
+      stepsCompleted: 0,
+    })).map((day) => ({ ...day, stepsCompleted: byDay.get(day.date) ?? 0 }));
     let streak = 0;
-    // A day the member had nothing scheduled cannot break a streak, so it is skipped rather
-    // than counted against them.
     for (let index = days.length - 1; index >= 0; index -= 1) {
-      if (days[index].planned === 0) continue;
-      if (days[index].started === 0) break;
+      if (days[index].stepsCompleted === 0) break;
       streak += 1;
     }
     return structuredClone({
       days,
       currentStreak: streak,
-      daysAtOrAbove70: days.filter((day) => day.planned > 0 && day.percentage >= 70).length,
-      totalCheckOffs: seedCheckOffs.filter((checkOff) => checkOff.userId === userActivity[1])
-        .length,
-    }) as T;
-  }
-
-  const userCheckOffs = path.match(/^\/users\/([^/]+)\/check-offs$/);
-  if (userCheckOffs && method === 'GET') {
-    const limit = Number(query.get('limit') ?? 50);
-    const cursor = query.get('cursor');
-    const mine = seedCheckOffs.filter((checkOff) => checkOff.userId === userCheckOffs[1]);
-    const start = cursor ? mine.findIndex((checkOff) => checkOff.id === cursor) + 1 : 0;
-    const page = mine.slice(start, start + limit);
-    return structuredClone({
-      checkOffs: page,
-      nextCursor: start + limit < mine.length ? (page[page.length - 1]?.id ?? null) : null,
+      activeDays: days.filter((day) => day.stepsCompleted > 0).length,
+      totalSteps: days.reduce((sum, day) => sum + day.stepsCompleted, 0),
     }) as T;
   }
 

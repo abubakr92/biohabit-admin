@@ -1,5 +1,5 @@
 import type { FieldValues, UseFormSetError } from 'react-hook-form';
-import type { AppUser, CheckOff, DailyCompletion, UserRoutine } from './models';
+import type { AppUser, CheckOffDay, DayActivity, UserRoutine } from './models';
 
 export interface ApiFieldErrors {
   [field: string]: string[];
@@ -59,15 +59,15 @@ export interface RoutineFilters {
   userId?: string;
 }
 
-/** The 30-day strip plus the headline numbers above it, again server-computed. */
+/** Steps completed per day, plus headline numbers. All server-computed. */
 export interface UserActivity {
-  days: DailyCompletion[];
+  days: DayActivity[];
   currentStreak: number;
-  daysAtOrAbove70: number;
-  totalCheckOffs: number;
+  activeDays: number;
+  totalSteps: number;
 }
 
 export interface CheckOffPage {
-  checkOffs: CheckOff[];
+  days: CheckOffDay[];
   nextCursor: string | null;
 }

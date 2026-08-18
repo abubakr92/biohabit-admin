@@ -16,3 +16,14 @@ export interface ContextRow extends ContextRowInput { id: string; stackId: strin
 export interface LabelInput { key: string; name: Bilingual }
 export interface Label extends LabelInput { id: string; usageCount: number }
 export interface AppUser { id: string; email: string; accessLevel: AccessLevel; rhythmDaysCount: number; unlockedAt: string | null; lastCheckOffAt: string | null; createdAt: string }
+
+// --- Member activity -------------------------------------------------------
+// The app records completions as one document per day at users/{uid}/checkOffs/{YYYY-MM-DD},
+// holding the contextRow ids ticked that day. Those rows belong to admin-authored stacks: members
+// follow the Library directly, so there is no user-owned routine to read.
+export interface CheckOffStep { stepId: string; microActionId: string; microActionTitle: Bilingual; stackId: string; stackTitle: string }
+export interface StackBreakdown { stackId: string; stackTitle: string; completed: number; total: number }
+export interface CheckOffDay { day: string; updatedAt: string | null; stepCount: number; steps: CheckOffStep[]; stacks: StackBreakdown[] }
+export interface DayActivity { date: string; stepsCompleted: number }
+export interface UserActivity { days: DayActivity[]; currentStreak: number; activeDays: number; totalSteps: number }
+export interface UserPreferences { need: string | null; timing: string | null; focus: string | null; budget: string | null; selected: boolean; setAt: string | null }

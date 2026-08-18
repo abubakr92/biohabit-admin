@@ -15,6 +15,7 @@ export const endpoints = {
     unlock: (id: string) => `/users/${id}/unlock`,
     routines: (id: string) => `/users/${id}/routines`,
     activity: (id: string) => `/users/${id}/activity`,
+    preferences: (id: string) => `/users/${id}/preferences`,
     checkOffs: (id: string) => `/users/${id}/check-offs`,
   },
   // Member-owned routines. Read-only: no create, update or delete exists anywhere.

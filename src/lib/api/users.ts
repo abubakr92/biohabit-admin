@@ -2,7 +2,7 @@ import { apiRequest } from './client';
 import { endpoints } from './endpoints';
 import type { AppUser } from '@/types/models';
 import type { CheckOffPage, UserActivity, UserPage, UserStatus } from '@/types/api';
-import type { UserRoutine } from '@/types/models';
+import type { UserPreferences, UserRoutine } from '@/types/models';
 
 export const USERS_PAGE_SIZE = 50;
 
@@ -24,7 +24,7 @@ export const unlockUser = (id: string) =>
   apiRequest<AppUser>(endpoints.users.unlock(id), { method: 'POST' });
 
 export const USER_ACTIVITY_DAYS = 30;
-export const CHECK_OFFS_PAGE_SIZE = 50;
+export const CHECK_OFFS_PAGE_SIZE = 30;
 
 export const getUser = (id: string) => apiRequest<AppUser>(endpoints.users.detail(id));
 
@@ -47,3 +47,6 @@ export function getUserCheckOffs({
   if (cursor) query.set('cursor', cursor);
   return apiRequest<CheckOffPage>(`${endpoints.users.checkOffs(id)}?${query.toString()}`);
 }
+
+export const getUserPreferences = (id: string) =>
+  apiRequest<UserPreferences>(endpoints.users.preferences(id));

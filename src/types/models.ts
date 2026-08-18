@@ -194,3 +194,50 @@ export interface CheckOff {
   startedAt: string;
   modeUsed: Mode;
 }
+
+// ---------------------------------------------------------------------------
+// Member activity — the shape the app actually writes.
+//
+// Completions live at users/{uid}/checkOffs/{YYYY-MM-DD}: one document per day holding the
+// contextRow ids ticked that day. Those rows belong to admin-authored stacks, so a member's
+// activity is measured against the Library, not against a routine of their own.
+// ---------------------------------------------------------------------------
+
+export interface CheckOffStep {
+  stepId: string;
+  microActionId: string;
+  microActionTitle: Bilingual;
+  stackId: string;
+  stackTitle: string;
+}
+
+export interface StackBreakdown {
+  stackId: string;
+  stackTitle: string;
+  completed: number;
+  total: number;
+}
+
+export interface CheckOffDay {
+  day: string;
+  updatedAt: ApiDate;
+  stepCount: number;
+  steps: CheckOffStep[];
+  stacks: StackBreakdown[];
+}
+
+/** A count, not a percentage: the panel has no honest denominator for what a member "should" do. */
+export interface DayActivity {
+  date: string;
+  stepsCompleted: number;
+}
+
+/** Onboarding answers. These map onto the same axes stacks are classified by. */
+export interface UserPreferences {
+  need: string | null;
+  timing: string | null;
+  focus: string | null;
+  budget: string | null;
+  selected: boolean;
+  setAt: ApiDate;
+}

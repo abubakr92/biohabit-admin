@@ -86,6 +86,10 @@ app.patch('/labels/:id', route(async (request, response) => { const existing = (
 app.delete('/labels/:id', route(async (request, response) => { await store.deleteLabel(request.params.id); await audit(response, 'delete', 'label', request.params.id); response.status(204).send(); }));
 
 app.get('/users', route(async (request, response) => { const query = userQuerySchema.parse(request.query); response.json(await store.listUsers(query.status, query.limit, query.cursor)); }));
+app.get('/users/:id', route(async (request, response) => { response.json(await store.getUser(request.params.id)); }));
+app.get('/users/:id/preferences', route(async (request, response) => { response.json(await store.getUserPreferences(request.params.id)); }));
+app.get('/users/:id/check-offs', route(async (request, response) => { const limit = Math.min(Math.max(Number(request.query.limit ?? 30), 1), 100); response.json(await store.listUserCheckOffs(request.params.id, limit, request.query.cursor ? String(request.query.cursor) : undefined)); }));
+app.get('/users/:id/activity', route(async (request, response) => { const days = Math.min(Math.max(Number(request.query.days ?? 30), 1), 90); response.json(await store.getUserActivity(request.params.id, days)); }));
 app.post('/users/:id/unlock', route(async (request, response) => { const user = await store.unlockUser(request.params.id); await audit(response, 'unlock', 'user', request.params.id); response.json(user); }));
 
 app.use((_request, _response, next: NextFunction) => next(new store.HttpError(404, 'Endpoint not found.')));

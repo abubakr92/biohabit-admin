@@ -89,22 +89,30 @@ The server supplies `id` and `usageCount`.
 
 ## Users
 
-| Method | Path                    | Request                                                                       | Response                                                |
-| ------ | ----------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------- |
-| GET    | `/users`                | `status=all\|silent\|unlocked\|locked`, `limit` (1–200, default 50), `cursor` | `{ users: UserRow[]; nextCursor: string \| null }`      |
-| GET    | `/users/:id`            | none                                                                          | `AppUser`                                               |
-| POST   | `/users/:id/unlock`     | none                                                                          | Updated `AppUser`                                       |
-| GET    | `/users/:id/routines`   | none                                                                          | `UserRoutine[]`                                         |
-| GET    | `/users/:id/activity`   | `days` (default 30)                                                           | `UserActivity`                                          |
-| GET    | `/users/:id/check-offs` | `limit` (default 50), `cursor`                                                | `{ checkOffs: CheckOff[]; nextCursor: string \| null }` |
+| Method | Path                     | Request                                                                       | Response                                              |
+| ------ | ------------------------ | ----------------------------------------------------------------------------- | ----------------------------------------------------- |
+| GET    | `/users`                 | `status=all\|silent\|unlocked\|locked`, `limit` (1–200, default 50), `cursor` | `{ users: UserRow[]; nextCursor: string \| null }`    |
+| GET    | `/users/:id`             | none                                                                          | `AppUser`                                             |
+| POST   | `/users/:id/unlock`      | none                                                                          | Updated `AppUser`                                     |
+| GET    | `/users/:id/preferences` | none                                                                          | `UserPreferences`                                     |
+| GET    | `/users/:id/activity`    | `days` (1–90, default 30)                                                     | `UserActivity`                                        |
+| GET    | `/users/:id/check-offs`  | `limit` (1–100, default 30), `cursor`                                         | `{ days: CheckOffDay[]; nextCursor: string \| null }` |
 
 This collection grows with every app signup and is never returned whole. Filtering and paging both happen in Firestore: pass the `nextCursor` from a response back as `cursor` to fetch the following page, and treat a `null` `nextCursor` as the end of the list. A cursor that no longer resolves returns `400`. `silent` means no check-off in the last three days, including testers who have never checked off.
 
-`UserRow` is `AppUser` plus `routineCount`. The count is supplied by the list endpoint rather than tallied by the client, for the same reason the routine summary is.
+`UserRow` is `AppUser` plus `routineCount`.
 
-`UserActivity` is `{ days: DailyCompletion[]; currentStreak: number; daysAtOrAbove70: number; totalCheckOffs: number }`. All three figures are server-computed. A day on which the member had nothing scheduled does not break a streak — it is skipped, not counted as a miss — because they cannot fail a day they were never asked about.
+**Completions are stored per day, not per action.** The app writes `users/{uid}/checkOffs/{YYYY-MM-DD}` holding `stepIds` — the `contextRow` ids ticked that day. Those rows belong to admin-authored stacks: members follow the Library directly, so activity is measured against stacks rather than against any routine of their own. Timestamps in these documents are Firestore `Timestamp` values, not ISO strings.
+
+`CheckOffDay` is `{ day, updatedAt, stepCount, steps, stacks }`. `steps` resolves each id to its micro-action title and parent stack; `stacks` groups them as `{ stackId, stackTitle, completed, total }`, so a day reads "3 of 4" rather than a bare count. Paginated by `day`, newest first.
+
+`UserActivity` is `{ days: DayActivity[]; currentStreak; activeDays; totalSteps }`, where `DayActivity` is `{ date, stepsCompleted }`. **Deliberately a count, not a percentage** — which stacks a member ought to follow is decided in the app from their preferences, so this side has no honest denominator to divide by.
+
+`UserPreferences` is `{ need, timing, focus, budget, selected, setAt }` — the onboarding answers. They map onto the axes stacks are already classified by: `need` → `functionTag`, `timing` → `daypart`, `focus` → label key, `budget` → mode.
 
 ## Routines
+
+> **Not implemented server-side.** No routine data exists in Firestore today — members follow admin-authored stacks directly, and the panel section for this is parked. The shape below is the agreed contract for when the app starts writing routines.
 
 Routines belong to the member who created them. **Every endpoint here is read-only**: there is deliberately no create, update or delete, and `POST`, `PATCH` and `DELETE` return `404`. A routine references the shared micro-action library but never modifies it, and routines never appear in `/stacks` nor templates in `/routines`.
 

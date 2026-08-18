@@ -4,6 +4,7 @@ import {
   getUser,
   getUserActivity,
   getUserCheckOffs,
+  getUserPreferences,
   getUserRoutines,
   getUsers,
   unlockUser,
@@ -57,5 +58,12 @@ export const useUserCheckOffs = (id: string) =>
     queryFn: ({ pageParam }) => getUserCheckOffs({ id, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: Boolean(id),
+  });
+
+export const useUserPreferences = (id: string) =>
+  useQuery({
+    queryKey: ['users', id, 'preferences'],
+    queryFn: () => getUserPreferences(id),
     enabled: Boolean(id),
   });

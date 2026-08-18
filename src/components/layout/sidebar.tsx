@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Layers3, ListChecks, Tags, Users, LogOut, Leaf, CalendarRange } from 'lucide-react';
+import { Layers3, ListChecks, Tags, Users, LogOut, Leaf } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useLogout, useSession } from '@/lib/hooks/use-auth';
 const groups = [
@@ -15,10 +15,7 @@ const groups = [
   },
   {
     label: 'People',
-    links: [
-      { href: '/users', label: 'Users', icon: Users },
-      { href: '/routines', label: 'Routines', icon: CalendarRange },
-    ],
+    links: [{ href: '/users', label: 'Users', icon: Users }],
   },
 ];
 export function Sidebar() {
