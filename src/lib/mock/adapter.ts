@@ -6,12 +6,15 @@ import { seedMicroActions } from './data/micro-actions';
 import { seedContextRows } from './data/context-rows';
 import { seedLabels } from './data/labels';
 import { seedUsers } from './data/users';
+import { divergenceFor, seedRoutineActions, seedRoutines } from './data/routines';
+import { routineCompletion, seedCheckOffs, userCompletion } from './data/completions';
 
 let stacks = structuredClone(seedStacks);
 let microActions = structuredClone(seedMicroActions);
 let contextRows = structuredClone(seedContextRows);
 let labels = structuredClone(seedLabels);
 const users = structuredClone(seedUsers);
+const routines = structuredClone(seedRoutines);
 
 const delay = () => new Promise((resolve) => setTimeout(resolve, 260 + Math.random() * 140));
 const body = <T>(init: RequestInit) =>
@@ -216,7 +219,11 @@ export async function mockRequest<T>(fullPath: string, init: RequestInit = {}): 
         (status === 'locked' && !user.unlockedAt),
     );
     const start = cursor ? matching.findIndex((user) => user.id === cursor) + 1 : 0;
-    const page = matching.slice(start, start + limit);
+    // routineCount is attached here so the table never has to fetch and tally routines itself.
+    const page = matching.slice(start, start + limit).map((user) => ({
+      ...user,
+      routineCount: routines.filter((routine) => routine.userId === user.id).length,
+    }));
     return structuredClone({
       users: page,
       nextCursor: start + limit < matching.length ? (page[page.length - 1]?.id ?? null) : null,
@@ -229,6 +236,110 @@ export async function mockRequest<T>(fullPath: string, init: RequestInit = {}): 
     users[index].unlockedAt = new Date().toISOString();
     return structuredClone(users[index]) as T;
   }
+  // --- User routines: read-only. No POST, PATCH or DELETE is implemented on purpose. ---
+
+  if (path === '/routines' && method === 'GET') {
+    const search = (query.get('search') ?? '').toLowerCase();
+    const matching = routines.filter(
+      (routine) =>
+        (!search || `${routine.title} ${routine.userEmail}`.toLowerCase().includes(search)) &&
+        (!query.get('source') || routine.source === query.get('source')) &&
+        (!query.get('status') || routine.status === query.get('status')) &&
+        (!query.get('mode') || routine.mode === query.get('mode')) &&
+        (!query.get('userId') || routine.userId === query.get('userId')),
+    );
+    // Summary is computed here, not in the component, so the real backend has a contract to match.
+    const fromTemplate = matching.filter((routine) => routine.source === 'template').length;
+    return structuredClone({
+      routines: matching,
+      summary: {
+        total: matching.length,
+        fromTemplate,
+        custom: matching.length - fromTemplate,
+        averageActions: matching.length
+          ? Math.round(
+              (matching.reduce((sum, routine) => sum + routine.actionCount, 0) / matching.length) *
+                10,
+            ) / 10
+          : 0,
+      },
+    }) as T;
+  }
+
+  const routineActions = path.match(/^\/routines\/([^/]+)\/actions$/);
+  if (routineActions && method === 'GET')
+    return structuredClone(
+      seedRoutineActions
+        .filter((action) => action.routineId === routineActions[1])
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    ) as T;
+
+  const routineDivergence = path.match(/^\/routines\/([^/]+)\/divergence$/);
+  if (routineDivergence && method === 'GET') {
+    if (!routines.some((routine) => routine.id === routineDivergence[1]))
+      throw new ApiError(404, 'Routine not found.');
+    return structuredClone(divergenceFor(routineDivergence[1])) as T;
+  }
+
+  const routineCompletionPath = path.match(/^\/routines\/([^/]+)\/completion$/);
+  if (routineCompletionPath && method === 'GET')
+    return structuredClone(
+      routineCompletion(routineCompletionPath[1], Number(query.get('days') ?? 14)),
+    ) as T;
+
+  const routineDetail = path.match(/^\/routines\/([^/]+)$/);
+  if (routineDetail && method === 'GET') {
+    const routine = routines.find((item) => item.id === routineDetail[1]);
+    if (!routine) throw new ApiError(404, 'Routine not found.');
+    return structuredClone(routine) as T;
+  }
+
+  // --- User detail sub-resources ---
+
+  const userRoutines = path.match(/^\/users\/([^/]+)\/routines$/);
+  if (userRoutines && method === 'GET')
+    return structuredClone(routines.filter((routine) => routine.userId === userRoutines[1])) as T;
+
+  const userActivity = path.match(/^\/users\/([^/]+)\/activity$/);
+  if (userActivity && method === 'GET') {
+    const days = userCompletion(userActivity[1], Number(query.get('days') ?? 30));
+    let streak = 0;
+    // A day the member had nothing scheduled cannot break a streak, so it is skipped rather
+    // than counted against them.
+    for (let index = days.length - 1; index >= 0; index -= 1) {
+      if (days[index].planned === 0) continue;
+      if (days[index].started === 0) break;
+      streak += 1;
+    }
+    return structuredClone({
+      days,
+      currentStreak: streak,
+      daysAtOrAbove70: days.filter((day) => day.planned > 0 && day.percentage >= 70).length,
+      totalCheckOffs: seedCheckOffs.filter((checkOff) => checkOff.userId === userActivity[1])
+        .length,
+    }) as T;
+  }
+
+  const userCheckOffs = path.match(/^\/users\/([^/]+)\/check-offs$/);
+  if (userCheckOffs && method === 'GET') {
+    const limit = Number(query.get('limit') ?? 50);
+    const cursor = query.get('cursor');
+    const mine = seedCheckOffs.filter((checkOff) => checkOff.userId === userCheckOffs[1]);
+    const start = cursor ? mine.findIndex((checkOff) => checkOff.id === cursor) + 1 : 0;
+    const page = mine.slice(start, start + limit);
+    return structuredClone({
+      checkOffs: page,
+      nextCursor: start + limit < mine.length ? (page[page.length - 1]?.id ?? null) : null,
+    }) as T;
+  }
+
+  const userDetail = path.match(/^\/users\/([^/]+)$/);
+  if (userDetail && method === 'GET') {
+    const user = users.find((item) => item.id === userDetail[1]);
+    if (!user) throw new ApiError(404, 'User not found.');
+    return structuredClone(user) as T;
+  }
+
   throw new ApiError(404, `Mock endpoint not implemented: ${method} ${path}`);
 }
 

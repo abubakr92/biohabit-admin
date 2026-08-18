@@ -9,10 +9,16 @@ export function DataTable<T extends { id: string }>({
   data,
   columns,
   rowClassName,
+  onRowClick,
 }: {
   data: T[];
   columns: Column<T>[];
   rowClassName?: (row: T) => string;
+  /**
+   * Makes the whole row a click target. Always pair it with a real link inside the row — the
+   * handler is a convenience for the mouse, not a substitute for keyboard navigation.
+   */
+  onRowClick?: (row: T) => void;
 }) {
   return (
     <div className="card overflow-x-auto">
@@ -33,7 +39,8 @@ export function DataTable<T extends { id: string }>({
           {data.map((row) => (
             <tr
               key={row.id}
-              className={`group transition hover:bg-slate-50/70 ${rowClassName?.(row) ?? ''}`}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={`group transition hover:bg-slate-50/70 ${onRowClick ? 'cursor-pointer' : ''} ${rowClassName?.(row) ?? ''}`}
             >
               {columns.map((column) => (
                 <td key={column.key} className={`px-5 py-4 text-sm ${column.className ?? ''}`}>

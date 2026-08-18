@@ -1,6 +1,14 @@
 'use client';
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUsers, unlockUser } from '@/lib/api/users';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  getUser,
+  getUserActivity,
+  getUserCheckOffs,
+  getUserRoutines,
+  getUsers,
+  unlockUser,
+  USER_ACTIVITY_DAYS,
+} from '@/lib/api/users';
 import type { UserStatus } from '@/types/api';
 
 export const useUsers = (status: UserStatus) =>
@@ -18,3 +26,36 @@ export function useUnlockUser() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   });
 }
+
+export const userKeys = {
+  detail: (id: string) => ['users', id] as const,
+  routines: (id: string) => ['users', id, 'routines'] as const,
+  activity: (id: string, days: number) => ['users', id, 'activity', days] as const,
+  checkOffs: (id: string) => ['users', id, 'check-offs'] as const,
+};
+
+export const useUser = (id: string) =>
+  useQuery({ queryKey: userKeys.detail(id), queryFn: () => getUser(id), enabled: Boolean(id) });
+
+export const useUserRoutines = (id: string) =>
+  useQuery({
+    queryKey: userKeys.routines(id),
+    queryFn: () => getUserRoutines(id),
+    enabled: Boolean(id),
+  });
+
+export const useUserActivity = (id: string, days: number = USER_ACTIVITY_DAYS) =>
+  useQuery({
+    queryKey: userKeys.activity(id, days),
+    queryFn: () => getUserActivity(id, days),
+    enabled: Boolean(id),
+  });
+
+export const useUserCheckOffs = (id: string) =>
+  useInfiniteQuery({
+    queryKey: userKeys.checkOffs(id),
+    queryFn: ({ pageParam }) => getUserCheckOffs({ id, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: Boolean(id),
+  });

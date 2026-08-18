@@ -118,3 +118,79 @@ export interface AppUser {
   avatarUrl?: string | null;
   verified?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// User routines
+//
+// Routines are owned by app members, not by this panel: they are read-only
+// everywhere in the admin. A routine either starts from a Library stack
+// template or is built from scratch, and from then on the member owns it. The
+// only thing routines share with templates is the micro-action library, which
+// they reference and never modify.
+// ---------------------------------------------------------------------------
+
+export type RoutineSource = 'template' | 'custom';
+export type RoutineStatus = 'active' | 'inactive' | 'expired';
+export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
+export interface UserRoutine {
+  id: string;
+  userId: string;
+  userEmail: string;
+  title: string;
+  description: string;
+  source: RoutineSource;
+  /** Both null for a routine built from scratch. */
+  sourceStackId: string | null;
+  sourceStackTitle: string | null;
+  mode: Mode;
+  weekdays: Weekday[];
+  startDate: string;
+  endDate: string | null;
+  anchorTime: string | null;
+  notificationOn: boolean;
+  status: RoutineStatus;
+  actionCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserRoutineAction {
+  id: string;
+  routineId: string;
+  microActionId: string;
+  microActionTitle: Bilingual;
+  sortOrder: number;
+  startTime: string | null;
+  durationMin: number;
+  includedInMode: Mode;
+  isActive: boolean;
+  /** True when the member added this action themselves, rather than inheriting it. */
+  isUserAdded: boolean;
+}
+
+/** What a member changed relative to the template they started from. */
+export interface RoutineDivergence {
+  nameChanged: boolean;
+  actionsAdded: number;
+  actionsRemoved: number;
+  orderChanged: boolean;
+  timesChanged: number;
+}
+
+export interface DailyCompletion {
+  date: string;
+  started: number;
+  planned: number;
+  percentage: number;
+}
+
+export interface CheckOff {
+  id: string;
+  userId: string;
+  routineId: string;
+  routineTitle: string;
+  microActionTitle: Bilingual;
+  startedAt: string;
+  modeUsed: Mode;
+}

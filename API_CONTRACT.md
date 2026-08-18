@@ -89,12 +89,42 @@ The server supplies `id` and `usageCount`.
 
 ## Users
 
-| Method | Path                | Request                                                                       | Response                                           |
-| ------ | ------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------- |
-| GET    | `/users`            | `status=all\|silent\|unlocked\|locked`, `limit` (1–200, default 50), `cursor` | `{ users: AppUser[]; nextCursor: string \| null }` |
-| POST   | `/users/:id/unlock` | none                                                                          | Updated `AppUser`                                  |
+| Method | Path                    | Request                                                                       | Response                                                |
+| ------ | ----------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------- |
+| GET    | `/users`                | `status=all\|silent\|unlocked\|locked`, `limit` (1–200, default 50), `cursor` | `{ users: UserRow[]; nextCursor: string \| null }`      |
+| GET    | `/users/:id`            | none                                                                          | `AppUser`                                               |
+| POST   | `/users/:id/unlock`     | none                                                                          | Updated `AppUser`                                       |
+| GET    | `/users/:id/routines`   | none                                                                          | `UserRoutine[]`                                         |
+| GET    | `/users/:id/activity`   | `days` (default 30)                                                           | `UserActivity`                                          |
+| GET    | `/users/:id/check-offs` | `limit` (default 50), `cursor`                                                | `{ checkOffs: CheckOff[]; nextCursor: string \| null }` |
 
 This collection grows with every app signup and is never returned whole. Filtering and paging both happen in Firestore: pass the `nextCursor` from a response back as `cursor` to fetch the following page, and treat a `null` `nextCursor` as the end of the list. A cursor that no longer resolves returns `400`. `silent` means no check-off in the last three days, including testers who have never checked off.
+
+`UserRow` is `AppUser` plus `routineCount`. The count is supplied by the list endpoint rather than tallied by the client, for the same reason the routine summary is.
+
+`UserActivity` is `{ days: DailyCompletion[]; currentStreak: number; daysAtOrAbove70: number; totalCheckOffs: number }`. All three figures are server-computed. A day on which the member had nothing scheduled does not break a streak — it is skipped, not counted as a miss — because they cannot fail a day they were never asked about.
+
+## Routines
+
+Routines belong to the member who created them. **Every endpoint here is read-only**: there is deliberately no create, update or delete, and `POST`, `PATCH` and `DELETE` return `404`. A routine references the shared micro-action library but never modifies it, and routines never appear in `/stacks` nor templates in `/routines`.
+
+| Method | Path                       | Request                                        | Response                              |
+| ------ | -------------------------- | ---------------------------------------------- | ------------------------------------- |
+| GET    | `/routines`                | `search`, `source`, `status`, `mode`, `userId` | `RoutineListResponse`                 |
+| GET    | `/routines/:id`            | none                                           | `UserRoutine`                         |
+| GET    | `/routines/:id/actions`    | none                                           | `UserRoutineAction[]`, by `sortOrder` |
+| GET    | `/routines/:id/divergence` | none                                           | `RoutineDivergence` or `null`         |
+| GET    | `/routines/:id/completion` | `days` (default 14)                            | `DailyCompletion[]`, oldest first     |
+
+`RoutineListResponse` is `{ routines: UserRoutine[]; summary: RoutineSummary }`, where `RoutineSummary` is `{ total, fromTemplate, custom, averageActions }`. **The summary is computed over the filtered set**, so the tiles always agree with the table beneath them.
+
+`source` is `template` or `custom`. For a custom routine `sourceStackId` and `sourceStackTitle` are both `null`, and `/divergence` returns `null` — there is no template to diverge from.
+
+`RoutineDivergence` is `{ nameChanged, actionsAdded, actionsRemoved, orderChanged, timesChanged }`, describing what the member changed after adopting the template. It must be **diffed against the template's current action list**, not stored at adoption time, so the panel never reports a change the member did not make. `orderChanged` compares only the relative order of actions the template supplied — inserting a new action does not by itself count as a reorder.
+
+`UserRoutineAction.isUserAdded` marks an action the member added that the source template did not contain; it is always `true` for every action of a custom routine.
+
+`DailyCompletion` is `{ date, started, planned, percentage }`. `planned` is `0` on a day the routine was not scheduled — a weekday it does not run, before it started, or after it expired — which is distinct from a day that was planned and missed (`planned > 0, started = 0`). Clients must render those two cases differently.
 
 ## Status codes
 
