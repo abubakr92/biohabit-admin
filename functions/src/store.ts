@@ -98,37 +98,49 @@ async function usersPage(query: Query, limit: number, cursorId?: string) {
   return { users: documents.map((document) => ({ ...(document.data() as Omit<AppUser, 'id'>), id: document.id })), more: snapshot.docs.length > limit, lastId: documents.length ? documents[documents.length - 1].id : null };
 }
 
+/**
+ * Filtering happens in memory over a single stable ordering, not through Firestore predicates.
+ *
+ * The app writes these timestamps as Firestore Timestamps while this panel writes ISO strings, and
+ * Firestore orders by type before value: a `> ''` range therefore skips every Timestamp, and
+ * `== null` skips them too, so a member with app-written timestamps fell through both the
+ * "unlocked" and "not unlocked" filters and disappeared from the list entirely. Comparing the
+ * values ourselves is type-agnostic and cannot lose a row that way. Reads stay bounded because the
+ * scan stops as soon as the page is full.
+ */
+const MAX_SCAN_PAGES = 20;
+
+function matchesStatus(user: AppUser, status: 'all' | 'silent' | 'unlocked' | 'locked'): boolean {
+  if (status === 'all') return true;
+  const unlocked = Boolean(user.unlockedAt);
+  if (status === 'unlocked') return unlocked;
+  if (status === 'locked') return !unlocked;
+  const lastCheckOff = isoOf(user.lastCheckOffAt);
+  return !lastCheckOff || Date.now() - new Date(lastCheckOff).getTime() >= SILENT_AFTER_MS;
+}
+
 export async function listUsers(status: 'all' | 'silent' | 'unlocked' | 'locked', limit: number, cursor?: string) {
   const collection = db.collection(collections.users);
-  if (status === 'silent') return listSilentUsers(limit, cursor);
-  const query = status === 'unlocked' ? collection.where('unlockedAt', '>', '').orderBy('unlockedAt', 'desc')
-    : status === 'locked' ? collection.where('unlockedAt', '==', null).orderBy('createdAt', 'desc')
-      : collection.orderBy('createdAt', 'desc');
-  const page = await usersPage(query, limit, cursor);
-  return { users: page.users, nextCursor: page.more ? page.lastId : null };
+  const users: AppUser[] = [];
+  let scanCursor = cursor;
+  let lastId: string | null = null;
+  let exhausted = false;
+
+  for (let page = 0; page < MAX_SCAN_PAGES && users.length < limit && !exhausted; page += 1) {
+    const scan = await usersPage(collection.orderBy('createdAt', 'desc'), limit, scanCursor);
+    exhausted = !scan.more;
+    if (!scan.users.length) break;
+    for (const user of scan.users) {
+      if (users.length >= limit) break;
+      if (matchesStatus(user, status)) users.push(user);
+      lastId = user.id;
+    }
+    scanCursor = scan.lastId ?? undefined;
+  }
+
+  return { users, nextCursor: exhausted ? null : lastId };
 }
 
-// "Silent" spans two disjoint sets, because a Firestore inequality filter skips null values
-// outright: testers who have never checked off can only be reached by an equality query, and are
-// invisible to the `<=` range that finds the merely stale ones. The cursor records which of the
-// two passes it belongs to, and a short first pass is topped up from the second.
-async function listSilentUsers(limit: number, cursor?: string) {
-  const collection = db.collection(collections.users);
-  const separator = cursor ? cursor.indexOf(':') : -1;
-  const phase = cursor ? cursor.slice(0, separator) : 'never';
-  const cursorId = separator >= 0 ? cursor!.slice(separator + 1) || undefined : undefined;
-  if (phase !== 'never' && phase !== 'stale') throw new HttpError(400, 'The pagination cursor is no longer valid.');
-  const stale = () => collection.where('lastCheckOffAt', '<=', new Date(Date.now() - SILENT_AFTER_MS).toISOString()).orderBy('lastCheckOffAt', 'asc');
-
-  if (phase === 'stale') { const page = await usersPage(stale(), limit, cursorId); return { users: page.users, nextCursor: page.more ? `stale:${page.lastId}` : null }; }
-
-  const never = await usersPage(collection.where('lastCheckOffAt', '==', null).orderBy('createdAt', 'desc'), limit, cursorId);
-  if (never.more) return { users: never.users, nextCursor: `never:${never.lastId}` };
-  const remaining = limit - never.users.length;
-  if (remaining <= 0) return { users: never.users, nextCursor: 'stale:' };
-  const page = await usersPage(stale(), remaining);
-  return { users: [...never.users, ...page.users], nextCursor: page.more ? `stale:${page.lastId}` : null };
-}
 export async function getUser(id: string) { return one<Omit<AppUser, 'id'>>(collections.users, id, 'User') as Promise<AppUser>; }
 export async function unlockUser(id: string) { await getUser(id); await db.collection(collections.users).doc(id).update({ unlockedAt: new Date().toISOString() }); return getUser(id); }
 export async function ensureAdminUser(uid: string, email: string, hasAdminClaim: boolean) {
