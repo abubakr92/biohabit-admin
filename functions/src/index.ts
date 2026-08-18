@@ -6,6 +6,7 @@ import { ZodError } from 'zod';
 import { adminAuth } from './firebase';
 import { contextRowSchema, labelSchema, microActionSchema, reorderSchema, stackSchema, userQuerySchema } from './schemas';
 import * as store from './store';
+import * as routines from './routines';
 import type { ContextRowInput, LabelInput, MicroActionInput, StackInput } from './types';
 
 setGlobalOptions({ region: 'europe-west4', maxInstances: 10 });
@@ -85,8 +86,15 @@ app.post('/labels', route(async (request, response) => { const input = labelSche
 app.patch('/labels/:id', route(async (request, response) => { const existing = (await store.listLabels()).find((label) => label.id === request.params.id); if (!existing) throw new store.HttpError(404, 'Label not found.'); const input = labelSchema.parse({ key: existing.key, name: existing.name, ...request.body }) as LabelInput; const label = await store.updateLabel(request.params.id, input); await audit(response, 'update', 'label', request.params.id); response.json(label); }));
 app.delete('/labels/:id', route(async (request, response) => { await store.deleteLabel(request.params.id); await audit(response, 'delete', 'label', request.params.id); response.status(204).send(); }));
 
+// Member-owned routines. Read-only by design: no create, update or delete route exists here.
+app.get('/routines', route(async (request, response) => { response.json(await routines.listRoutines({ search: String(request.query.search ?? ''), source: String(request.query.source ?? ''), status: String(request.query.status ?? ''), mode: String(request.query.mode ?? ''), userId: String(request.query.userId ?? '') })); }));
+app.get('/routines/:id', route(async (request, response) => { response.json(await routines.getRoutine(request.params.id)); }));
+app.get('/routines/:id/actions', route(async (request, response) => { response.json(await routines.listRoutineActions(request.params.id)); }));
+app.get('/routines/:id/divergence', route(async (request, response) => { response.json(await routines.getRoutineDivergence(request.params.id)); }));
+app.get('/routines/:id/completion', route(async (request, response) => { const days = Math.min(Math.max(Number(request.query.days ?? 14), 1), 90); response.json(await routines.getRoutineCompletion(request.params.id, days)); }));
 app.get('/users', route(async (request, response) => { const query = userQuerySchema.parse(request.query); response.json(await store.listUsers(query.status, query.limit, query.cursor)); }));
 app.get('/users/:id', route(async (request, response) => { response.json(await store.getUser(request.params.id)); }));
+app.get('/users/:id/routines', route(async (request, response) => { response.json(await routines.listUserRoutines(request.params.id)); }));
 app.get('/users/:id/preferences', route(async (request, response) => { response.json(await store.getUserPreferences(request.params.id)); }));
 app.get('/users/:id/check-offs', route(async (request, response) => { const limit = Math.min(Math.max(Number(request.query.limit ?? 30), 1), 100); response.json(await store.listUserCheckOffs(request.params.id, limit, request.query.cursor ? String(request.query.cursor) : undefined)); }));
 app.get('/users/:id/activity', route(async (request, response) => { const days = Math.min(Math.max(Number(request.query.days ?? 30), 1), 90); response.json(await store.getUserActivity(request.params.id, days)); }));

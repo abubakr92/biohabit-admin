@@ -13,11 +13,13 @@ import {
   useUserActivity,
   useUserCheckOffs,
   useUserPreferences,
+  useUserRoutines,
 } from '@/lib/hooks/use-users';
 import { labelFor } from '@/lib/constants/enums';
 import { formatDate } from '@/lib/utils/format';
 import { useToast } from '@/app/providers';
 import { ActivityStrip } from './_components/activity-strip';
+import { UserRoutinesTable } from './_components/user-routines-table';
 import { CheckOffList } from './_components/check-off-list';
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -33,6 +35,7 @@ export default function UserPage() {
   const { id } = useParams<{ id: string }>();
   const user = useUser(id);
   const preferences = useUserPreferences(id);
+  const routines = useUserRoutines(id);
   const activity = useUserActivity(id);
   const checkOffs = useUserCheckOffs(id);
   const unlock = useUnlockUser();
@@ -120,6 +123,17 @@ export default function UserPage() {
       )}
 
       <section className="mb-6">
+        <h2 className="mb-3 font-semibold">Routines</h2>
+        {routines.isLoading ? (
+          <LoadingState rows={3} />
+        ) : routines.isError ? (
+          <ErrorState message={routines.error.message} retry={() => routines.refetch()} />
+        ) : (
+          <UserRoutinesTable routines={routines.data ?? []} />
+        )}
+      </section>
+
+      <section className="mb-6">
         <h2 className="mb-3 font-semibold">Activity</h2>
         {activity.isLoading ? (
           <LoadingState rows={3} />
@@ -131,7 +145,13 @@ export default function UserPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 font-semibold">Recent check-offs</h2>
+        <div className="mb-3">
+          <h2 className="font-semibold">All check-offs</h2>
+          <p className="mt-0.5 text-sm text-slate-500">
+            Every day this member has ticked something, newest first. Nothing is trimmed — keep
+            loading to reach the very first day.
+          </p>
+        </div>
         {checkOffs.isLoading ? (
           <LoadingState rows={5} />
         ) : checkOffs.isError ? (

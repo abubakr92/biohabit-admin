@@ -80,7 +80,7 @@ export function CheckOffList({
       {hasMore && (
         <div className="border-t border-slate-200 p-3 text-center">
           <button className="btn" disabled={loadingMore} onClick={onLoadMore}>
-            {loadingMore ? 'Loading…' : 'Load more days'}
+            {loadingMore ? 'Loading…' : 'Load older days'}
           </button>
         </div>
       )}

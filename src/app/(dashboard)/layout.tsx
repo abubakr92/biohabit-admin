@@ -14,6 +14,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <Link href="/micro-actions">Actions</Link>
             <Link href="/labels">Labels</Link>
             <Link href="/users">Users</Link>
+            <Link href="/routines">Routines</Link>
           </div>
         </div>
         <main className="mx-auto max-w-[1400px] px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
