@@ -33,10 +33,12 @@ export function RoutineActionList({ actions }: { actions: UserRoutineAction[] })
               href={`/micro-actions/${action.microActionId}`}
               className={`font-medium hover:text-[#236b5b] ${action.isActive ? 'text-slate-900' : 'text-slate-500'}`}
             >
-              {action.microActionTitle.en}
+              {action.title}
             </Link>
             <span className="mt-0.5 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-slate-400">{action.microActionTitle.nl}</span>
+              <span className="text-xs text-slate-400">
+                {action.microActionId ?? 'Custom action'}
+              </span>
               {action.isUserAdded && (
                 <span className="badge border-violet-200 bg-violet-50 text-[11px] text-violet-700">
                   <Plus className="mr-0.5 size-3" />
@@ -49,10 +51,10 @@ export function RoutineActionList({ actions }: { actions: UserRoutineAction[] })
             {action.startTime ?? '—'}
           </span>
           <span className="hidden text-sm tabular-nums text-slate-600 sm:block">
-            {action.durationMin} min
+            {action.durationLabel ?? (action.durationMin ? action.durationMin + ' min' : '—')}
           </span>
           <span className="hidden text-xs text-slate-500 sm:block">
-            From {labelFor(action.includedInMode)}
+            {action.depth ? labelFor(action.depth) : '—'}
           </span>
           <span
             className={`badge justify-self-start text-[11px] ${

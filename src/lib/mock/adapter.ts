@@ -6,8 +6,12 @@ import { seedMicroActions } from './data/micro-actions';
 import { seedContextRows } from './data/context-rows';
 import { seedLabels } from './data/labels';
 import { seedUsers } from './data/users';
-import { divergenceFor, seedRoutineActions, seedRoutines } from './data/routines';
-import { routineCompletion } from './data/completions';
+import {
+  divergenceFor,
+  routineCompletion,
+  seedRoutineActions,
+  seedRoutines,
+} from './data/routines';
 import { mockCheckOffDays, mockPreferences } from './data/check-offs';
 
 let stacks = structuredClone(seedStacks);

@@ -81,7 +81,7 @@ export default function RoutinePage() {
           </Fact>
           <Fact label="Mode">{labelFor(item.mode)}</Fact>
           <Fact label="Anchor time">
-            <span className="tabular-nums">{item.anchorTime ?? 'No anchor'}</span>
+            <span className="tabular-nums">{item.startsAt ?? 'No start time'}</span>
           </Fact>
           <Fact label="Weekdays">
             <WeekdayDots weekdays={item.weekdays} />

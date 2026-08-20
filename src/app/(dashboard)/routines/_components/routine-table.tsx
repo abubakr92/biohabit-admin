@@ -91,7 +91,7 @@ export function RoutineTable({ data }: { data: UserRoutine[] }) {
       key: 'anchor',
       header: 'Anchor',
       render: (routine) => (
-        <span className="tabular-nums text-slate-600">{routine.anchorTime ?? '—'}</span>
+        <span className="tabular-nums text-slate-600">{routine.startsAt ?? '—'}</span>
       ),
     },
     {

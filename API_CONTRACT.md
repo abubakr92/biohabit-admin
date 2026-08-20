@@ -112,7 +112,19 @@ This collection grows with every app signup and is never returned whole. Filteri
 
 ## Routines
 
-> **Not implemented server-side.** No routine data exists in Firestore today — members follow admin-authored stacks directly, and the panel section for this is parked. The shape below is the agreed contract for when the app starts writing routines.
+**Storage.** The app writes routines as a subcollection, with the actions held as an array field inside each routine document — there is no separate actions collection:
+
+```
+users/{uid}/routines/{routineId}
+  .actions[]   { id, microActionId, title, at, amount, depth, enabled }
+```
+
+Two conventions in that data carry meaning and the API depends on them:
+
+- An action `id` prefixed `seed-` came from a stack template, and the remainder is the `contextRows` id it was copied from. Anything else the member added themselves. This is how `source`, `sourceStackId` and the divergence panel are derived — the template link is not stored explicitly.
+- Check-off `stepIds` record those same `contextRows` ids, which is what allows per-routine completion to be matched at all.
+
+**Field mapping.** The API normalises the app's vocabulary rather than exposing it raw: `startsAt` → `startsAt`, `anchor` → `anchorLabel` (free text, not a time), `notificationsEnabled` → `notificationOn`, `weekdays` as `[1…7]` → `['mon'…'sun']`, `createdAt` as epoch millis → ISO. Action `at` → `startTime`, `amount` ("2 min") → both `durationLabel` and a parsed `durationMin`, `enabled` → `isActive`, `depth` passed through as-is. `microActionId` is `null` when the member typed a one-off action instead of picking from the library, and a routine the member has switched off (`enabled: false`) reports `status: 'inactive'`.
 
 Routines belong to the member who created them. **Every endpoint here is read-only**: there is deliberately no create, update or delete, and `POST`, `PATCH` and `DELETE` return `404`. A routine references the shared micro-action library but never modifies it, and routines never appear in `/stacks` nor templates in `/routines`.
 

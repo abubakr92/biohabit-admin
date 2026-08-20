@@ -1,37 +1,41 @@
-import type { DailyCompletion } from '@/types/models';
+import type { DayActivity } from '@/types/models';
 
 /**
- * Shared by the routine completion strip and the user activity heatmap. A day the member had
- * nothing scheduled is drawn hollow rather than as a miss — they cannot fail a day they were never
- * asked about, and colouring it red would misread the data.
+ * Shared by the routine completion strip and the user activity strip.
+ *
+ * Shades each day by how many steps were ticked, relative to the busiest day in the same window —
+ * not by a percentage. Which steps a member was *meant* to do that day is decided in the app from
+ * their preferences, so the panel has no honest denominator; showing a percentage would look
+ * precise while being invented.
  */
-function tone(day: DailyCompletion) {
-  if (day.planned === 0) return 'bg-slate-50 border border-dashed border-slate-200';
-  if (day.started === 0) return 'bg-red-100 border border-red-200';
-  if (day.percentage >= 90) return 'bg-[#236b5b] border border-[#236b5b]';
-  if (day.percentage >= 70) return 'bg-[#4f9d89] border border-[#4f9d89]';
-  if (day.percentage >= 40) return 'bg-[#9ccbbe] border border-[#9ccbbe]';
+function tone(day: DayActivity, busiest: number) {
+  if (day.stepsCompleted === 0) return 'bg-slate-100 border border-slate-200';
+  const share = busiest > 0 ? day.stepsCompleted / busiest : 0;
+  if (share >= 0.75) return 'bg-[#236b5b] border border-[#236b5b]';
+  if (share >= 0.45) return 'bg-[#4f9d89] border border-[#4f9d89]';
+  if (share >= 0.2) return 'bg-[#9ccbbe] border border-[#9ccbbe]';
   return 'bg-[#d6e9e2] border border-[#c3ded4]';
 }
 
 const formatDay = (iso: string) =>
-  new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' }).format(new Date(iso));
+  new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' }).format(
+    new Date(`${iso}T12:00:00Z`),
+  );
 
-const describe = (day: DailyCompletion) =>
-  day.planned === 0
-    ? `${formatDay(day.date)} · not scheduled`
-    : `${formatDay(day.date)} · ${day.started} of ${day.planned} started (${day.percentage}%)`;
+const describe = (day: DayActivity) =>
+  `${formatDay(day.date)} · ${day.stepsCompleted} step${day.stepsCompleted === 1 ? '' : 's'}`;
 
 export function CompletionSquares({
   days,
   columns,
   label,
 }: {
-  days: DailyCompletion[];
+  days: DayActivity[];
   /** Omit for a single row; set to wrap into a grid. */
   columns?: number;
   label: string;
 }) {
+  const busiest = Math.max(...days.map((day) => day.stepsCompleted), 0);
   return (
     <div className="overflow-x-auto">
       <div
@@ -48,7 +52,7 @@ export function CompletionSquares({
           <div
             key={day.date}
             title={describe(day)}
-            className={`aspect-square min-w-5 rounded ${tone(day)}`}
+            className={`${columns ? 'aspect-square min-w-5' : 'size-6 shrink-0'} rounded ${tone(day, busiest)}`}
           />
         ))}
       </div>
@@ -56,23 +60,19 @@ export function CompletionSquares({
   );
 }
 
-export function CompletionLegend() {
+export function CompletionLegend({ busiest }: { busiest?: number }) {
   return (
     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
       <span className="flex items-center gap-1.5">
-        <span className="size-3 rounded border border-dashed border-slate-200 bg-slate-50" />
-        Not scheduled
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="size-3 rounded border border-red-200 bg-red-100" />
-        Nothing started
+        <span className="size-3 rounded border border-slate-200 bg-slate-100" />
+        Nothing ticked
       </span>
       <span className="flex items-center gap-1.5">
         <span className="size-3 rounded bg-[#d6e9e2]" />
         <span className="size-3 rounded bg-[#9ccbbe]" />
         <span className="size-3 rounded bg-[#4f9d89]" />
         <span className="size-3 rounded bg-[#236b5b]" />
-        Rising completion
+        More steps{busiest ? ` (busiest day: ${busiest})` : ''}
       </span>
     </div>
   );

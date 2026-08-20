@@ -140,33 +140,39 @@ export interface UserRoutine {
   title: string;
   description: string;
   source: RoutineSource;
-  /** Both null for a routine built from scratch. */
   sourceStackId: string | null;
   sourceStackTitle: string | null;
-  mode: Mode;
+  mode: string;
   weekdays: Weekday[];
-  startDate: string;
-  endDate: string | null;
-  anchorTime: string | null;
+  repeat: string | null;
+  anchorLabel: string | null;
+  startsAt: string | null;
+  durationMinutes: number | null;
   notificationOn: boolean;
+  enabled: boolean;
   status: RoutineStatus;
   actionCount: number;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: ApiDate;
+  updatedAt: ApiDate;
 }
 
 export interface UserRoutineAction {
   id: string;
   routineId: string;
-  microActionId: string;
+  /** Null when the member typed a one-off action instead of picking one from the library. */
+  microActionId: string | null;
+  title: string;
   microActionTitle: Bilingual;
   sortOrder: number;
   startTime: string | null;
-  durationMin: number;
-  includedInMode: Mode;
+  /** The app stores duration as free text ("2 min"); both the label and a parsed number arrive. */
+  durationLabel: string | null;
+  durationMin: number | null;
+  depth: string | null;
   isActive: boolean;
-  /** True when the member added this action themselves, rather than inheriting it. */
   isUserAdded: boolean;
+  /** The contextRows id this action was seeded from, when it came from a template. */
+  sourceStepId: string | null;
 }
 
 /** What a member changed relative to the template they started from. */

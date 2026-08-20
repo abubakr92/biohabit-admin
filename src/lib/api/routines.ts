@@ -1,7 +1,7 @@
 import { apiRequest } from './client';
 import { endpoints } from './endpoints';
 import type {
-  DailyCompletion,
+  DayActivity,
   RoutineDivergence,
   UserRoutine,
   UserRoutineAction,
@@ -31,4 +31,4 @@ export const getRoutineDivergence = (id: string) =>
   apiRequest<RoutineDivergence | null>(endpoints.routines.divergence(id));
 
 export const getRoutineCompletion = (id: string, days: number = ROUTINE_STRIP_DAYS) =>
-  apiRequest<DailyCompletion[]>(`${endpoints.routines.completion(id)}?days=${days}`);
+  apiRequest<DayActivity[]>(`${endpoints.routines.completion(id)}?days=${days}`);
