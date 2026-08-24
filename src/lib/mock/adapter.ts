@@ -1,16 +1,25 @@
 import { ApiError } from '@/lib/api/client';
+import { toDate } from '@/lib/utils/format';
 import type { ContextRow, Label, MicroAction, Stack } from '@/types/models';
 import { seedStacks } from './data/stacks';
 import { seedMicroActions } from './data/micro-actions';
 import { seedContextRows } from './data/context-rows';
 import { seedLabels } from './data/labels';
 import { seedUsers } from './data/users';
+import {
+  divergenceFor,
+  routineCompletion,
+  seedRoutineActions,
+  seedRoutines,
+} from './data/routines';
+import { mockCheckOffDays, mockPreferences } from './data/check-offs';
 
 let stacks = structuredClone(seedStacks);
 let microActions = structuredClone(seedMicroActions);
 let contextRows = structuredClone(seedContextRows);
 let labels = structuredClone(seedLabels);
 const users = structuredClone(seedUsers);
+const routines = structuredClone(seedRoutines);
 
 const delay = () => new Promise((resolve) => setTimeout(resolve, 260 + Math.random() * 140));
 const body = <T>(init: RequestInit) =>
@@ -210,13 +219,16 @@ export async function mockRequest<T>(fullPath: string, init: RequestInit = {}): 
     const matching = users.filter(
       (user) =>
         status === 'all' ||
-        (status === 'silent' &&
-          (!user.lastCheckOffAt || new Date(user.lastCheckOffAt).getTime() <= silentBefore)) ||
+        (status === 'silent' && (toDate(user.lastCheckOffAt)?.getTime() ?? 0) <= silentBefore) ||
         (status === 'unlocked' && Boolean(user.unlockedAt)) ||
         (status === 'locked' && !user.unlockedAt),
     );
     const start = cursor ? matching.findIndex((user) => user.id === cursor) + 1 : 0;
-    const page = matching.slice(start, start + limit);
+    // routineCount is attached here so the table never has to fetch and tally routines itself.
+    const page = matching.slice(start, start + limit).map((user) => ({
+      ...user,
+      routineCount: routines.filter((routine) => routine.userId === user.id).length,
+    }));
     return structuredClone({
       users: page,
       nextCursor: start + limit < matching.length ? (page[page.length - 1]?.id ?? null) : null,
@@ -229,6 +241,120 @@ export async function mockRequest<T>(fullPath: string, init: RequestInit = {}): 
     users[index].unlockedAt = new Date().toISOString();
     return structuredClone(users[index]) as T;
   }
+  // --- User routines: read-only. No POST, PATCH or DELETE is implemented on purpose. ---
+
+  if (path === '/routines' && method === 'GET') {
+    const search = (query.get('search') ?? '').toLowerCase();
+    const matching = routines.filter(
+      (routine) =>
+        (!search || `${routine.title} ${routine.userEmail}`.toLowerCase().includes(search)) &&
+        (!query.get('source') || routine.source === query.get('source')) &&
+        (!query.get('status') || routine.status === query.get('status')) &&
+        (!query.get('mode') || routine.mode === query.get('mode')) &&
+        (!query.get('userId') || routine.userId === query.get('userId')),
+    );
+    // Summary is computed here, not in the component, so the real backend has a contract to match.
+    const fromTemplate = matching.filter((routine) => routine.source === 'template').length;
+    return structuredClone({
+      routines: matching,
+      summary: {
+        total: matching.length,
+        fromTemplate,
+        custom: matching.length - fromTemplate,
+        averageActions: matching.length
+          ? Math.round(
+              (matching.reduce((sum, routine) => sum + routine.actionCount, 0) / matching.length) *
+                10,
+            ) / 10
+          : 0,
+      },
+    }) as T;
+  }
+
+  const routineActions = path.match(/^\/routines\/([^/]+)\/actions$/);
+  if (routineActions && method === 'GET')
+    return structuredClone(
+      seedRoutineActions
+        .filter((action) => action.routineId === routineActions[1])
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    ) as T;
+
+  const routineDivergence = path.match(/^\/routines\/([^/]+)\/divergence$/);
+  if (routineDivergence && method === 'GET') {
+    if (!routines.some((routine) => routine.id === routineDivergence[1]))
+      throw new ApiError(404, 'Routine not found.');
+    return structuredClone(divergenceFor(routineDivergence[1])) as T;
+  }
+
+  const routineCompletionPath = path.match(/^\/routines\/([^/]+)\/completion$/);
+  if (routineCompletionPath && method === 'GET')
+    return structuredClone(
+      routineCompletion(routineCompletionPath[1], Number(query.get('days') ?? 14)),
+    ) as T;
+
+  const routineDetail = path.match(/^\/routines\/([^/]+)$/);
+  if (routineDetail && method === 'GET') {
+    const routine = routines.find((item) => item.id === routineDetail[1]);
+    if (!routine) throw new ApiError(404, 'Routine not found.');
+    return structuredClone(routine) as T;
+  }
+
+  // --- User detail sub-resources ---
+
+  const userRoutines = path.match(/^\/users\/([^/]+)\/routines$/);
+  if (userRoutines && method === 'GET')
+    return structuredClone(routines.filter((routine) => routine.userId === userRoutines[1])) as T;
+
+  const userPreferences = path.match(/^\/users\/([^/]+)\/preferences$/);
+  if (userPreferences && method === 'GET') {
+    if (!users.some((user) => user.id === userPreferences[1]))
+      throw new ApiError(404, 'User not found.');
+    return structuredClone(mockPreferences(userPreferences[1])) as T;
+  }
+
+  // Mirrors what the app actually writes: one entry per day, holding the steps ticked that day
+  // grouped by the stack they belong to.
+  const userCheckOffs = path.match(/^\/users\/([^/]+)\/check-offs$/);
+  if (userCheckOffs && method === 'GET') {
+    const limit = Number(query.get('limit') ?? 30);
+    const cursor = query.get('cursor');
+    const mine = mockCheckOffDays(userCheckOffs[1]);
+    const start = cursor ? mine.findIndex((day) => day.day === cursor) + 1 : 0;
+    const page = mine.slice(start, start + limit);
+    return structuredClone({
+      days: page,
+      nextCursor: start + limit < mine.length ? (page[page.length - 1]?.day ?? null) : null,
+    }) as T;
+  }
+
+  const userActivity = path.match(/^\/users\/([^/]+)\/activity$/);
+  if (userActivity && method === 'GET') {
+    const requested = Number(query.get('days') ?? 30);
+    const byDay = new Map(mockCheckOffDays(userActivity[1]).map((day) => [day.day, day.stepCount]));
+    const days = Array.from({ length: requested }, (_, offset) => ({
+      date: new Date(Date.now() - (requested - 1 - offset) * 86_400_000).toISOString().slice(0, 10),
+      stepsCompleted: 0,
+    })).map((day) => ({ ...day, stepsCompleted: byDay.get(day.date) ?? 0 }));
+    let streak = 0;
+    for (let index = days.length - 1; index >= 0; index -= 1) {
+      if (days[index].stepsCompleted === 0) break;
+      streak += 1;
+    }
+    return structuredClone({
+      days,
+      currentStreak: streak,
+      activeDays: days.filter((day) => day.stepsCompleted > 0).length,
+      totalSteps: days.reduce((sum, day) => sum + day.stepsCompleted, 0),
+    }) as T;
+  }
+
+  const userDetail = path.match(/^\/users\/([^/]+)$/);
+  if (userDetail && method === 'GET') {
+    const user = users.find((item) => item.id === userDetail[1]);
+    if (!user) throw new ApiError(404, 'User not found.');
+    return structuredClone(user) as T;
+  }
+
   throw new ApiError(404, `Mock endpoint not implemented: ${method} ${path}`);
 }
 

@@ -115,7 +115,7 @@ export const seedMicroActions: MicroAction[] = items.map(
     warning: { nl: 'Stop als dit oncomfortabel voelt.', en: 'Stop if this feels uncomfortable.' },
     labels,
     durationMin,
-    level: index % 5 === 0 ? 'intermediate' : 'beginner',
+    level: index % 5 === 0 ? 'balanced' : 'essential',
     usedInStacksCount: index < 18 ? 2 + (index % 3) : index < 22 ? 1 : 0,
   }),
 );

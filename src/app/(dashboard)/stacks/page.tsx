@@ -25,17 +25,10 @@ export default function StacksPage() {
     () =>
       (stacks.data ?? []).filter((stack) => {
         const search = filters.search.toLowerCase();
-        const daypartMatch =
-          !filters.daypart ||
-          (filters.daypart === 'morning'
-            ? stack.suggestedTiming.en.toLowerCase().includes('waking')
-            : filters.daypart === 'midday'
-              ? stack.suggestedTiming.en.toLowerCase().includes('midday')
-              : stack.suggestedTiming.en.toLowerCase().includes('evening'));
         return (
           (!search || `${stack.title.en} ${stack.title.nl}`.toLowerCase().includes(search)) &&
           (!filters.functionTag || stack.functionTag === filters.functionTag) &&
-          daypartMatch &&
+          (!filters.daypart || stack.daypart === filters.daypart) &&
           (!filters.label ||
             stack.primaryLabel === filters.label ||
             stack.supportingLabels.includes(filters.label)) &&

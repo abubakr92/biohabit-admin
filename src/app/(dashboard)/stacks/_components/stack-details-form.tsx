@@ -5,7 +5,8 @@ import { Save } from 'lucide-react';
 import { BilingualField } from '@/components/form/bilingual-field';
 import { FormSection } from '@/components/form/form-section';
 import { LabelMultiSelect } from '@/components/form/label-multi-select';
-import { functionTags, labelFor, levels } from '@/lib/constants/enums';
+import { dayparts, functionTags, labelFor, levels } from '@/lib/constants/enums';
+import { DAYPART_WINDOWS } from '@/lib/constants/rules';
 import { missingForPublish, stackSchema, type StackFormValues } from '@/lib/validation/stack';
 import type { SubmitHelpers } from '@/types/api';
 import type { Label, Stack } from '@/types/models';
@@ -17,7 +18,8 @@ const empty: StackFormValues = {
   functionTag: 'regulate',
   primaryLabel: '',
   supportingLabels: [],
-  level: 'beginner',
+  level: 'essential',
+  daypart: null,
   isPremium: false,
   isActive: false,
 };
@@ -53,6 +55,7 @@ export function StackDetailsForm({
           primaryLabel: stack.primaryLabel,
           supportingLabels: stack.supportingLabels,
           level: stack.level,
+          daypart: stack.daypart ?? null,
           isPremium: stack.isPremium,
           isActive: stack.isActive,
         }
@@ -133,6 +136,26 @@ export function StackDetailsForm({
               )}
             </label>
             <label className="text-sm font-semibold">
+              Daypart
+              <select
+                className="field mt-2"
+                {...register('daypart', { setValueAs: (value) => value || null })}
+              >
+                <option value="">Not set</option>
+                {dayparts.map((item) => (
+                  <option key={item} value={item}>
+                    {labelFor(item)} · {DAYPART_WINDOWS[item]}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs font-normal text-slate-500">
+                Required before this stack can be published.
+              </span>
+              {errors.daypart && (
+                <span className="mt-1 block text-xs text-red-600">{errors.daypart.message}</span>
+              )}
+            </label>
+            <label className="text-sm font-semibold">
               Level
               <select className="field mt-2" {...register('level')}>
                 {levels.map((item) => (
@@ -141,6 +164,9 @@ export function StackDetailsForm({
                   </option>
                 ))}
               </select>
+              <span className="mt-1 block text-xs font-normal text-slate-500">
+                The mode tier this stack is written for.
+              </span>
             </label>
             <div className="md:col-span-2">
               <p className="mb-2 text-sm font-semibold">Supporting labels</p>

@@ -6,6 +6,7 @@ import { ZodError } from 'zod';
 import { adminAuth } from './firebase';
 import { contextRowSchema, labelSchema, microActionSchema, reorderSchema, stackSchema, userQuerySchema } from './schemas';
 import * as store from './store';
+import * as routines from './routines';
 import type { ContextRowInput, LabelInput, MicroActionInput, StackInput } from './types';
 
 setGlobalOptions({ region: 'europe-west4', maxInstances: 10 });
@@ -58,8 +59,8 @@ app.use((request, response, next) => {
 app.get('/auth/session', route(async (_request, response) => { response.json({ user: response.locals.admin }); }));
 
 app.get('/stacks', route(async (request, response) => {
-  const search = String(request.query.search ?? '').toLowerCase(); const functionTag = String(request.query.functionTag ?? ''); const label = String(request.query.label ?? ''); const active = String(request.query.active ?? '');
-  const data = (await store.listStacks()).filter((stack) => (!search || `${stack.title.en} ${stack.title.nl}`.toLowerCase().includes(search)) && (!functionTag || stack.functionTag === functionTag) && (!label || stack.primaryLabel === label || stack.supportingLabels.includes(label)) && (!active || stack.isActive === (active === 'true' || active === 'active')));
+  const search = String(request.query.search ?? '').toLowerCase(); const functionTag = String(request.query.functionTag ?? ''); const label = String(request.query.label ?? ''); const active = String(request.query.active ?? ''); const daypart = String(request.query.daypart ?? '');
+  const data = (await store.listStacks()).filter((stack) => (!search || `${stack.title.en} ${stack.title.nl}`.toLowerCase().includes(search)) && (!functionTag || stack.functionTag === functionTag) && (!label || stack.primaryLabel === label || stack.supportingLabels.includes(label)) && (!daypart || stack.daypart === daypart) && (!active || stack.isActive === (active === 'true' || active === 'active')));
   response.json(data);
 }));
 app.post('/stacks', route(async (request, response) => { const input = stackSchema.parse(request.body) as StackInput; const stack = await store.createStack(input); await audit(response, 'create', 'stack', stack.id); response.status(201).json(stack); }));
@@ -85,7 +86,18 @@ app.post('/labels', route(async (request, response) => { const input = labelSche
 app.patch('/labels/:id', route(async (request, response) => { const existing = (await store.listLabels()).find((label) => label.id === request.params.id); if (!existing) throw new store.HttpError(404, 'Label not found.'); const input = labelSchema.parse({ key: existing.key, name: existing.name, ...request.body }) as LabelInput; const label = await store.updateLabel(request.params.id, input); await audit(response, 'update', 'label', request.params.id); response.json(label); }));
 app.delete('/labels/:id', route(async (request, response) => { await store.deleteLabel(request.params.id); await audit(response, 'delete', 'label', request.params.id); response.status(204).send(); }));
 
+// Member-owned routines. Read-only by design: no create, update or delete route exists here.
+app.get('/routines', route(async (request, response) => { response.json(await routines.listRoutines({ search: String(request.query.search ?? ''), source: String(request.query.source ?? ''), status: String(request.query.status ?? ''), mode: String(request.query.mode ?? ''), userId: String(request.query.userId ?? '') })); }));
+app.get('/routines/:id', route(async (request, response) => { response.json(await routines.getRoutine(request.params.id)); }));
+app.get('/routines/:id/actions', route(async (request, response) => { response.json(await routines.listRoutineActions(request.params.id)); }));
+app.get('/routines/:id/divergence', route(async (request, response) => { response.json(await routines.getRoutineDivergence(request.params.id)); }));
+app.get('/routines/:id/completion', route(async (request, response) => { const days = Math.min(Math.max(Number(request.query.days ?? 14), 1), 90); response.json(await routines.getRoutineCompletion(request.params.id, days)); }));
 app.get('/users', route(async (request, response) => { const query = userQuerySchema.parse(request.query); response.json(await store.listUsers(query.status, query.limit, query.cursor)); }));
+app.get('/users/:id', route(async (request, response) => { response.json(await store.getUser(request.params.id)); }));
+app.get('/users/:id/routines', route(async (request, response) => { response.json(await routines.listUserRoutines(request.params.id)); }));
+app.get('/users/:id/preferences', route(async (request, response) => { response.json(await store.getUserPreferences(request.params.id)); }));
+app.get('/users/:id/check-offs', route(async (request, response) => { const limit = Math.min(Math.max(Number(request.query.limit ?? 30), 1), 100); response.json(await store.listUserCheckOffs(request.params.id, limit, request.query.cursor ? String(request.query.cursor) : undefined)); }));
+app.get('/users/:id/activity', route(async (request, response) => { const days = Math.min(Math.max(Number(request.query.days ?? 30), 1), 90); response.json(await store.getUserActivity(request.params.id, days)); }));
 app.post('/users/:id/unlock', route(async (request, response) => { const user = await store.unlockUser(request.params.id); await audit(response, 'unlock', 'user', request.params.id); response.json(user); }));
 
 app.use((_request, _response, next: NextFunction) => next(new store.HttpError(404, 'Endpoint not found.')));
@@ -101,7 +113,7 @@ function fieldErrors(error: ZodError): Record<string, string[]> {
   for (const issue of error.issues) { const key = issue.path.join('.') || '_'; (result[key] ??= []).push(issue.message); }
   return result;
 }
-function stackInput(stack: StackInput): StackInput { return { title: stack.title, description: stack.description, coherence: stack.coherence, suggestedTiming: stack.suggestedTiming, functionTag: stack.functionTag, primaryLabel: stack.primaryLabel, supportingLabels: stack.supportingLabels, level: stack.level, isPremium: stack.isPremium, isActive: stack.isActive }; }
+function stackInput(stack: StackInput): StackInput { return { title: stack.title, description: stack.description, coherence: stack.coherence, suggestedTiming: stack.suggestedTiming, functionTag: stack.functionTag, primaryLabel: stack.primaryLabel, supportingLabels: stack.supportingLabels, level: stack.level, daypart: stack.daypart ?? null, isPremium: stack.isPremium, isActive: stack.isActive }; }
 function microActionInput(action: MicroActionInput): MicroActionInput { return { title: action.title, effect: action.effect, howTo: action.howTo, warning: action.warning, labels: action.labels, durationMin: action.durationMin, level: action.level }; }
 function contextInput(row: ContextRowInput): ContextRowInput { return { microActionId: row.microActionId, microActionTitle: row.microActionTitle, stackSortOrder: row.stackSortOrder, priorityOrder: row.priorityOrder, isOptional: row.isOptional, isActiveByDefault: row.isActiveByDefault, includedInMode: row.includedInMode, daypart: row.daypart, durationOverrideMin: row.durationOverrideMin, timingType: row.timingType, startTime: row.startTime, endTime: row.endTime, relativeToContextId: row.relativeToContextId, dependencyText: row.dependencyText, contextEffect: row.contextEffect, contextWarning: row.contextWarning, centreTime: row.centreTime, elasticityMin: row.elasticityMin }; }
 

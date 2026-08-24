@@ -24,5 +24,11 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/stacks/:path*', '/micro-actions/:path*', '/labels/:path*', '/users/:path*'],
+  matcher: [
+    '/stacks/:path*',
+    '/micro-actions/:path*',
+    '/labels/:path*',
+    '/users/:path*',
+    '/routines/:path*',
+  ],
 };

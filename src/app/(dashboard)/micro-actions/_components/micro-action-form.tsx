@@ -16,7 +16,7 @@ const empty: MicroActionFormValues = {
   warning: { nl: '', en: '' },
   labels: [],
   durationMin: 3,
-  level: 'beginner',
+  level: 'essential',
 };
 export function MicroActionForm({
   action,
