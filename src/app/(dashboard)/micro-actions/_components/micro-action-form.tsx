@@ -7,8 +7,9 @@ import type { SubmitHelpers } from '@/types/api';
 import { microActionSchema, type MicroActionFormValues } from '@/lib/validation/micro-action';
 import { BilingualField } from '@/components/form/bilingual-field';
 import { FormSection } from '@/components/form/form-section';
+import { FormErrorSummary } from '@/components/form/form-error-summary';
 import { LabelMultiSelect } from '@/components/form/label-multi-select';
-import { labelFor, levels } from '@/lib/constants/enums';
+import { functionTags, labelFor, levels } from '@/lib/constants/enums';
 const empty: MicroActionFormValues = {
   title: { nl: '', en: '' },
   effect: { nl: '', en: '' },
@@ -16,7 +17,8 @@ const empty: MicroActionFormValues = {
   warning: { nl: '', en: '' },
   labels: [],
   durationMin: 3,
-  level: 'essential',
+  level: 'beginner',
+  defaultFunctionTag: null,
 };
 export function MicroActionForm({
   action,
@@ -46,6 +48,7 @@ export function MicroActionForm({
           labels: action.labels,
           durationMin: action.durationMin,
           level: action.level,
+          defaultFunctionTag: action.defaultFunctionTag ?? null,
         }
       : empty,
   });
@@ -115,6 +118,26 @@ export function MicroActionForm({
                   </option>
                 ))}
               </select>
+              {errors.level && (
+                <span className="mt-1 block text-xs text-red-600">{errors.level.message}</span>
+              )}
+            </label>
+            <label className="text-sm font-semibold">
+              Default function
+              <select
+                className="field mt-2"
+                {...register('defaultFunctionTag', { setValueAs: (value) => value || null })}
+              >
+                <option value="">Not set</option>
+                {functionTags.map((item) => (
+                  <option key={item} value={item}>
+                    {labelFor(item)}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs font-normal text-slate-500">
+                Inherited by every context row unless that row overrides it.
+              </span>
             </label>
             <div className="md:col-span-2">
               <p className="mb-2 text-sm font-semibold">Labels</p>
@@ -132,6 +155,7 @@ export function MicroActionForm({
           </div>
         </FormSection>
       </div>
+      <FormErrorSummary errors={errors} />
       <div className="mt-5 flex justify-end">
         <button className="btn btn-primary" disabled={pending}>
           <Save className="size-4" />

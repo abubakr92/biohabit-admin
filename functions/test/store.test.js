@@ -54,7 +54,7 @@ test.before(async () => {
       warning: bilingual('w'),
       labels: ['focus'],
       durationMin: 5,
-      level: 'essential',
+      level: 'beginner',
     });
   await db
     .collection('labels')
@@ -71,7 +71,7 @@ test('a label key in use cannot be renamed, but its display name can', async () 
     functionTag: 'regulate',
     primaryLabel: 'focus',
     supportingLabels: [],
-    level: 'essential',
+    level: 'beginner',
     isPremium: false,
     isActive: false,
   });
@@ -98,7 +98,7 @@ test('a reorder that inverts a relative dependency is rejected and changes nothi
     functionTag: 'regulate',
     primaryLabel: 'focus',
     supportingLabels: [],
-    level: 'essential',
+    level: 'beginner',
     isPremium: false,
     isActive: false,
   });
@@ -141,7 +141,7 @@ test('duplicating a stack repoints relative rows at the copies, not the source',
     functionTag: 'regulate',
     primaryLabel: 'focus',
     supportingLabels: [],
-    level: 'essential',
+    level: 'beginner',
     isPremium: false,
     isActive: true,
   });
@@ -174,7 +174,7 @@ test('deleting a stack removes its context rows with it', async () => {
     functionTag: 'regulate',
     primaryLabel: 'focus',
     supportingLabels: [],
-    level: 'essential',
+    level: 'beginner',
     isPremium: false,
     isActive: false,
   });

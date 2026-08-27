@@ -17,7 +17,7 @@ const draftStack = (overrides = {}) => ({
   functionTag: 'regulate',
   primaryLabel: 'focus',
   supportingLabels: [],
-  level: 'essential',
+  level: 'beginner',
   isPremium: false,
   isActive: false,
   ...overrides,
@@ -142,7 +142,7 @@ test('label keys are restricted to lowercase, digits and hyphens', () => {
 // which is the point: it is the prompt to change the panel's copy of the enum in the same pass.
 // See the change list on Level in src/types/models.ts.
 test('level accepts exactly the agreed scale, on stacks and micro-actions alike', () => {
-  const accepted = ['essential', 'balanced', 'full'];
+  const accepted = ['beginner', 'intermediate', 'advanced', 'expert'];
   for (const level of accepted) {
     assert.equal(stackSchema.safeParse(draftStack({ level })).success, true, `stack: ${level}`);
     assert.equal(
@@ -159,7 +159,7 @@ test('level accepts exactly the agreed scale, on stacks and micro-actions alike'
       `micro-action: ${level}`,
     );
   }
-  assert.equal(stackSchema.safeParse(draftStack({ level: 'beginner' })).success, false);
+  assert.equal(stackSchema.safeParse(draftStack({ level: 'essential' })).success, false);
 });
 
 test('the users query caps page size and defaults to the first page', () => {
@@ -167,4 +167,56 @@ test('the users query caps page size and defaults to the first page', () => {
   assert.equal(userQuerySchema.parse({ limit: '200' }).limit, 200);
   assert.equal(userQuerySchema.safeParse({ limit: '201' }).success, false);
   assert.equal(userQuerySchema.safeParse({ status: 'everyone' }).success, false);
+});
+
+// Regression for the client's blocking report: nothing saved, no request left the browser, no
+// message appeared. The stored level was `intermediate` while the enum had been changed to mode
+// names, so zod rejected the payload, react-hook-form refused to call the submit handler, and the
+// failure was invisible because the level error was rendered nowhere.
+test('a record holding a stored difficulty still submits', () => {
+  for (const level of ['beginner', 'intermediate', 'advanced', 'expert']) {
+    assert.equal(
+      stackSchema.safeParse(draftStack({ level })).success,
+      true,
+      `stack storing "${level}" must submit`,
+    );
+    assert.equal(
+      microActionSchema.safeParse({
+        title: bilingual('Hydration'),
+        effect: bilingual('e'),
+        howTo: bilingual('h'),
+        warning: bilingual('w'),
+        labels: ['energy'],
+        durationMin: 2,
+        level,
+      }).success,
+      true,
+      `micro-action storing "${level}" must submit`,
+    );
+  }
+  // Mode names are not levels, and must not be silently accepted as though they were.
+  for (const mode of ['essential', 'balanced', 'full'])
+    assert.equal(stackSchema.safeParse(draftStack({ level: mode })).success, false, mode);
+});
+
+// The function axis: a row inherits the library default unless it overrides, so the same action
+// can regulate in one stack and activate in another.
+test('function is optional on a context row and defaults to inheriting', () => {
+  assert.equal(contextRowSchema.parse(row()).functionTag, null, 'absent means inherit');
+  for (const tag of ['regulate', 'activate', 'build', 'recover'])
+    assert.equal(contextRowSchema.safeParse(row({ functionTag: tag })).success, true, tag);
+  assert.equal(contextRowSchema.safeParse(row({ functionTag: 'sprint' })).success, false);
+  assert.equal(
+    microActionSchema.parse({
+      title: bilingual('t'),
+      effect: bilingual('e'),
+      howTo: bilingual('h'),
+      warning: bilingual('w'),
+      labels: ['focus'],
+      durationMin: 5,
+      level: 'beginner',
+    }).defaultFunctionTag,
+    null,
+    'a library action may leave its default unset',
+  );
 });

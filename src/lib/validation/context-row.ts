@@ -8,6 +8,7 @@ export const contextRowSchema = z
   .object({
     microActionId: z.string().min(1),
     microActionTitle: bilingual,
+    functionTag: z.enum(['regulate', 'activate', 'build', 'recover']).nullable(),
     stackSortOrder: z.number().min(0),
     priorityOrder: z.number().min(1),
     isOptional: z.boolean(),

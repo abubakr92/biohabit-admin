@@ -6,7 +6,7 @@ import type { ContextRow } from '@/types/models';
 import type { SubmitHelpers } from '@/types/api';
 import { contextRowSchema, type ContextRowFormValues } from '@/lib/validation/context-row';
 import { derivedModes } from '@/lib/utils/modes';
-import { dayparts, labelFor, modes, timingTypes } from '@/lib/constants/enums';
+import { dayparts, functionTags, labelFor, modes, timingTypes } from '@/lib/constants/enums';
 import { BilingualField } from '@/components/form/bilingual-field';
 import { TimingTypeFields } from '@/components/form/timing-type-fields';
 
@@ -15,6 +15,7 @@ import { TimingTypeFields } from '@/components/form/timing-type-fields';
 const toFormValues = (row: ContextRow | null): ContextRowFormValues => ({
   microActionId: row?.microActionId ?? '',
   microActionTitle: row?.microActionTitle ?? { nl: '', en: '' },
+  functionTag: row?.functionTag ?? null,
   stackSortOrder: row?.stackSortOrder ?? 0,
   priorityOrder: row?.priorityOrder ?? 1,
   isOptional: row?.isOptional ?? false,
@@ -41,6 +42,7 @@ const toFormValues = (row: ContextRow | null): ContextRowFormValues => ({
 export function ContextRowDrawer({
   row,
   rows,
+  inheritedFunction,
   open,
   pending,
   onClose,
@@ -49,6 +51,8 @@ export function ContextRowDrawer({
 }: {
   row: ContextRow | null;
   rows: ContextRow[];
+  /** The micro-action's default function, named on the inherit option so the effect is visible. */
+  inheritedFunction?: string | null;
   open: boolean;
   pending?: boolean;
   onClose: () => void;

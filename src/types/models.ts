@@ -21,16 +21,13 @@ export type ApiDate =
   | null;
 
 /**
- * The mode tier a stack or micro-action is pitched at. Deliberately shares its vocabulary with
- * `Mode`, but the two answer different questions and are not interchangeable:
+ * How demanding a stack or micro-action is — difficulty, not mode.
  *
- *   Level            — how demanding this piece of content is overall.
- *   includedInMode   — from which mode a given context row starts appearing.
- *
- * A single stack still spans all three modes; its `level` is the tier it is written for, while
- * each row's `includedInMode` decides what a member actually sees in each mode.
+ * These are separate questions and must not be conflated: which actions a member sees in each mode
+ * is decided by a context row's `includedInMode`, which keeps its own `essential | balanced | full`
+ * vocabulary. Level is stored for categorisation only; nothing in the app branches on it yet.
  */
-export type Level = 'essential' | 'balanced' | 'full';
+export type Level = 'beginner' | 'intermediate' | 'advanced' | 'expert';
 
 export interface Bilingual {
   nl: string;
@@ -67,6 +64,12 @@ export interface MicroAction {
   labels: string[];
   durationMin: number;
   level: Level;
+  /**
+   * The function this action usually serves. A context row inherits it unless it overrides, so the
+   * field only needs attention where a stack uses the action differently. Null until an editor
+   * sets one — deliberately not defaulted, so "not set" stays visible rather than guessed.
+   */
+  defaultFunctionTag: FunctionTag | null;
   usedInStacksCount: number;
 }
 
@@ -75,6 +78,13 @@ export interface ContextRow {
   stackId: string;
   microActionId: string;
   microActionTitle: Bilingual;
+  /**
+   * The function this action serves *inside this stack*, which is not always the one it serves
+   * elsewhere — a post-meal walk regulates in a glucose stack and activates in a movement break.
+   * Null means inherit the micro-action's `defaultFunctionTag`. Because each row carries its own,
+   * one stack normally lights more than one ring.
+   */
+  functionTag: FunctionTag | null;
   stackSortOrder: number;
   priorityOrder: number;
   isOptional: boolean;

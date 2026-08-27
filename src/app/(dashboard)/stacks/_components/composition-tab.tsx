@@ -66,6 +66,7 @@ export function CompositionTab({ stack }: { stack: Stack }) {
     const input = {
       microActionId: action.id,
       microActionTitle: action.title,
+      functionTag: null,
       stackSortOrder: rows.length,
       priorityOrder: rows.length + 1,
       isOptional: false,
@@ -201,6 +202,10 @@ export function CompositionTab({ stack }: { stack: Stack }) {
       />
       <ContextRowDrawer
         key={selected?.id ?? 'closed'}
+        inheritedFunction={
+          actions.find((action) => action.id === selected?.microActionId)?.defaultFunctionTag ??
+          null
+        }
         open={Boolean(selected)}
         row={selected}
         rows={rows}

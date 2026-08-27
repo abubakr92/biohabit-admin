@@ -1,12 +1,12 @@
 export {};
-// Migrates live content to the classification introduced alongside the daypart axis:
-//   level:  beginner -> essential, intermediate -> balanced, advanced -> full
-//   stacks: gain a `daypart`, inferred from the suggestedTiming copy where it is unambiguous
+// Fills in the `daypart` added alongside the label and function classification axes, inferring it
+// from the suggestedTiming copy where that is unambiguous and reporting anything it cannot.
 //
-// Both changes are required by the deployed schema, so run this in the same window as the function
-// deploy. Idempotent: documents already carrying a new value are left alone and reported as such.
-const LEVELS: Record<string, string> = { beginner: 'essential', intermediate: 'balanced', advanced: 'full' };
-const NEW_LEVELS = new Set(Object.values(LEVELS));
+// It deliberately does NOT touch `level`. An earlier version remapped level values onto mode names;
+// that is now wrong. Level is difficulty — beginner | intermediate | advanced | expert — and the
+// stored values are already correct, so running that mapping today would destroy good data.
+//
+// Idempotent: stacks that already carry a daypart are skipped. Supports DRY_RUN=true.
 const DAYPART_HINTS: Array<[RegExp, string]> = [
   [/waking|ochtend|opstaan|morning|breakfast|ontbijt/i, 'morning'],
   [/midday|middag|noon|lunch/i, 'midday'],
@@ -21,36 +21,42 @@ function inferDaypart(stack: Record<string, unknown>): string | null {
 }
 
 async function main() {
-  if (process.env.CONFIRM_MIGRATION !== 'biohabit') throw new Error('Set CONFIRM_MIGRATION=biohabit to confirm this rewrites live content.');
+  if (process.env.CONFIRM_MIGRATION !== 'biohabit')
+    throw new Error('Set CONFIRM_MIGRATION=biohabit to confirm this writes to live content.');
   const dryRun = process.env.DRY_RUN === 'true';
   const { db } = await import('../firebase');
   const batch = db.batch();
   let writes = 0;
   const unresolved: string[] = [];
 
-  for (const collection of ['stacks', 'microActions']) {
-    const snapshot = await db.collection(collection).get();
-    for (const document of snapshot.docs) {
-      const data = document.data();
-      const update: Record<string, unknown> = {};
-
-      const level = data.level as string | undefined;
-      if (level && LEVELS[level]) update.level = LEVELS[level];
-      else if (level && !NEW_LEVELS.has(level)) unresolved.push(`${collection}/${document.id}: unknown level "${level}"`);
-
-      if (collection === 'stacks' && data.daypart === undefined) {
-        const daypart = inferDaypart(data);
-        update.daypart = daypart;
-        if (!daypart) unresolved.push(`${collection}/${document.id}: daypart left null, timing text gave no hint — an editor must pick one before publishing`);
-      }
-
-      if (Object.keys(update).length) { batch.update(document.ref, update); writes += 1; console.log(`  ${collection}/${document.id} -> ${JSON.stringify(update)}`); }
-    }
+  const snapshot = await db.collection('stacks').get();
+  for (const document of snapshot.docs) {
+    const data = document.data();
+    if (data.daypart !== undefined) continue;
+    const daypart = inferDaypart(data);
+    if (!daypart)
+      unresolved.push(`stacks/${document.id}: no daypart could be inferred — an editor must pick one`);
+    batch.update(document.ref, { daypart });
+    writes += 1;
+    console.log(`  stacks/${document.id} -> ${JSON.stringify({ daypart })}`);
   }
 
-  if (!writes) { console.log('Nothing to migrate; live content already matches the new classification.'); return; }
-  if (dryRun) { console.log(`\nDRY RUN — ${writes} document(s) would change. Re-run without DRY_RUN=true to apply.`); }
-  else { await batch.commit(); console.log(`\nMigrated ${writes} document(s).`); }
-  if (unresolved.length) { console.log('\nNeeds attention:'); unresolved.forEach((line) => console.log(`  ${line}`)); }
+  if (!writes) {
+    console.log('Nothing to migrate; every stack already carries a daypart.');
+    return;
+  }
+  if (dryRun)
+    console.log(`\nDRY RUN — ${writes} stack(s) would change. Re-run without DRY_RUN=true to apply.`);
+  else {
+    await batch.commit();
+    console.log(`\nMigrated ${writes} stack(s).`);
+  }
+  if (unresolved.length) {
+    console.log('\nNeeds attention:');
+    unresolved.forEach((line) => console.log(`  ${line}`));
+  }
 }
-main().catch((error: unknown) => { console.error(error); process.exitCode = 1; });
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

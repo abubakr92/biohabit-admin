@@ -11,7 +11,8 @@ export function ModePreviewBar({
   duration: number;
   onChange: (mode: Mode) => void;
 }) {
-  const exceeded = duration > MODE_CAPS[mode];
+  const cap = MODE_CAPS[mode];
+  const exceeded = cap !== null && duration > cap;
   return (
     <div className="card mb-5 flex flex-col justify-between gap-4 p-4 lg:flex-row lg:items-center">
       <div>
@@ -41,12 +42,16 @@ export function ModePreviewBar({
         <div>
           <p className="text-sm font-bold tabular-nums">
             {duration} min{' '}
-            <span className="font-normal text-slate-500">/ {MODE_CAPS[mode]} min cap</span>
+            <span className="font-normal text-slate-500">
+              {cap === null ? '· no cap' : `/ ${cap} min target`}
+            </span>
           </p>
           <p className="text-xs">
-            {exceeded
-              ? `Warning: ${labelFor(mode)} is ${duration - MODE_CAPS[mode]} min over its cap.`
-              : `${MODE_CAPS[mode] - duration} min remaining`}
+            {cap === null
+              ? `Elapsed time in ${labelFor(mode)} — no target`
+              : exceeded
+                ? `${labelFor(mode)} is ${duration - cap} min over its ${cap} min target.`
+                : `${cap - duration} min remaining`}
           </p>
         </div>
       </div>

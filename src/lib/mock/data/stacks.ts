@@ -29,7 +29,7 @@ export const seedStacks: Stack[] = items.map(([nl, en, functionTag, primaryLabel
   functionTag,
   primaryLabel,
   supportingLabels: index % 2 ? ['brain'] : ['energy'],
-  level: index > 5 ? 'balanced' : 'essential',
+  level: index > 5 ? 'intermediate' : 'beginner',
   daypart: index % 3 === 2 ? 'evening' : index % 3 === 1 ? 'midday' : 'morning',
   isPremium: index > 4,
   isActive: index !== 6,

@@ -15,6 +15,8 @@ export function CompositionRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  // The row's own function when set, otherwise the one inherited from the library action.
+  const effectiveFunction = row.functionTag ?? action?.defaultFunctionTag ?? null;
   const sortable = useSortable({ id: row.id });
   const style = {
     transform: CSS.Transform.toString(sortable.transform),
@@ -46,6 +48,7 @@ export function CompositionRow({
         <span className="block font-semibold text-slate-900">{row.microActionTitle.en}</span>
         <span className="mt-1 block text-xs text-slate-400">
           {row.microActionTitle.nl}
+          {effectiveFunction ? ` · ${labelFor(effectiveFunction)}` : ''}
           {row.isOptional ? ' · Optional' : ''}
         </span>
       </button>

@@ -11,6 +11,7 @@ export const seedContextRows: ContextRow[] = Array.from({ length: 8 }, (_, stack
       stackId: `stack-${stackIndex + 1}`,
       microActionId: action.id,
       microActionTitle: action.title,
+      functionTag: null,
       stackSortOrder: rowIndex,
       priorityOrder: rowIndex + 1,
       isOptional: rowIndex === 3,

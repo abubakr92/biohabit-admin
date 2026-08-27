@@ -42,7 +42,9 @@ Browser calls are restricted by CORS to the origins listed in `ADMIN_ORIGINS` (s
 
 **Classification.** Stacks are classified on three axes: `primaryLabel` (plus `supportingLabels`), `functionTag`, and `daypart` (`morning | midday | evening`). `daypart` is `null` on a draft and required to publish. `level` is a separate quality — the mode tier the stack is written for.
 
-**`level` and `Mode` share three words but are not the same field.** `level` (`essential | balanced | full`) describes how demanding the stack is overall; a context row's `includedInMode` decides from which mode that row starts appearing. Every stack still spans all three modes regardless of its `level`.
+**`level` is difficulty, not mode.** `level` (`beginner | intermediate | advanced | expert`) says how demanding the content is. Which actions a member sees in each mode is a separate question, answered by a context row's `includedInMode` (`essential | balanced | full`) — the two must not be conflated or duplicated. `level` is stored for categorisation; nothing in the app branches on it yet.
+
+**Mode caps are guidance, not validation.** `MODE_CAPS` in `src/lib/constants/rules.ts` drives the composer's preview only; the API has never rejected a stack for exceeding one. Essential targets 10 minutes; Balanced and Full are uncapped, because an evening wind-down legitimately runs past an hour. Cumulative duration is a plain sum of elapsed minutes — a 25-minute focus block consumes 25 and a 2-minute breath consumes 2, with no weighting for effort.
 
 **Draft rule.** A stack needs only `title` (NL and EN) and a `primaryLabel` to be saved. `description`, `coherence`, `suggestedTiming` (both languages) and `daypart` become required when `isActive` is `true`; activating an incomplete stack returns `422` listing each missing field. The client schema in `src/lib/validation/stack.ts` mirrors this exactly.
 
@@ -58,6 +60,8 @@ Duplicating a stack rewrites `relativeToContextId` on the copied rows to point a
 | DELETE | `/context-rows/:id`             | none                                 | `204`; `409` when another row depends on it   |
 | POST   | `/context-rows/reorder`         | `{ stackId: string; ids: string[] }` | `204`                                         |
 
+**`functionTag` on the row.** A micro-action's function is a property of the row, not of the library entry: a post-meal walk regulates inside a glucose stack and activates inside a movement break. The row's `functionTag` is nullable and inherits the action's `defaultFunctionTag` when unset, so entry stays light and only the exceptions need touching. Because each row carries its own, one stack normally lights more than one ring.
+
 `ContextRowInput` is the `ContextRow` interface without `id` and `stackId`. The API validates conditional timing fields (`exact`, `window` and `anchor` need `startTime`; `window` needs an `endTime` after it; `relative` needs a target and bilingual dependency text) and that `relativeToContextId` names an earlier row in the same stack.
 
 **Reorder rule.** `ids` must contain every row of the stack exactly once, and the resulting order must keep each `relative` row after the row it depends on. An order that would invert a dependency returns `422` and names the offending rows, so a drag cannot leave a row un-editable.
@@ -72,7 +76,11 @@ Duplicating a stack rewrites `relativeToContextId` on the copied rows to point a
 | PATCH  | `/micro-actions/:id` | `Partial<MicroActionInput>`               | `MicroAction`                                       |
 | DELETE | `/micro-actions/:id` | none                                      | `204`; `409` with dependent stack names when in use |
 
-`MicroActionInput` contains `title`, `effect`, `howTo`, `warning`, `labels`, `durationMin`, and `level`. The server supplies `id` and `usedInStacksCount`.
+`MicroActionInput` contains `title`, `effect`, `howTo`, `warning`, `labels`, `durationMin`, `level`, and `defaultFunctionTag`. The server supplies `id` and `usedInStacksCount`.
+
+**`defaultFunctionTag`** is the function this action usually serves. Every context row inherits it, so the field only needs attention on the rows where a stack uses the action differently. It is nullable and has no default: an unset function stays visibly unset rather than being guessed at.
+
+`warning` here is the action's own general caution, for the Library. A context row's `contextWarning` is the caution specific to using it inside that stack; likewise `effect` versus `contextEffect`. Both pairs are deliberate and neither replaces the other.
 
 ## Labels
 

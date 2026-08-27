@@ -23,7 +23,7 @@ export const stackSchema = z
     functionTag: z.enum(['regulate', 'activate', 'build', 'recover']),
     primaryLabel: z.string().min(1, 'Choose a primary label.'),
     supportingLabels: z.array(z.string()),
-    level: z.enum(['essential', 'balanced', 'full']),
+    level: z.enum(['beginner', 'intermediate', 'advanced', 'expert']),
     daypart: z.enum(['morning', 'midday', 'evening']).nullable(),
     isPremium: z.boolean(),
     isActive: z.boolean(),

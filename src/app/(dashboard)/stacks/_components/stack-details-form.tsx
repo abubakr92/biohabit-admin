@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Save } from 'lucide-react';
 import { BilingualField } from '@/components/form/bilingual-field';
 import { FormSection } from '@/components/form/form-section';
+import { FormErrorSummary } from '@/components/form/form-error-summary';
 import { LabelMultiSelect } from '@/components/form/label-multi-select';
 import { dayparts, functionTags, labelFor, levels } from '@/lib/constants/enums';
 import { DAYPART_WINDOWS } from '@/lib/constants/rules';
@@ -18,7 +19,7 @@ const empty: StackFormValues = {
   functionTag: 'regulate',
   primaryLabel: '',
   supportingLabels: [],
-  level: 'essential',
+  level: 'beginner',
   daypart: null,
   isPremium: false,
   isActive: false,
@@ -164,8 +165,11 @@ export function StackDetailsForm({
                   </option>
                 ))}
               </select>
+              {errors.level && (
+                <span className="mt-1 block text-xs text-red-600">{errors.level.message}</span>
+              )}
               <span className="mt-1 block text-xs font-normal text-slate-500">
-                The mode tier this stack is written for.
+                How demanding this stack is. Separate from mode, which each action sets itself.
               </span>
             </label>
             <div className="md:col-span-2">
@@ -245,6 +249,7 @@ export function StackDetailsForm({
           </div>
         </FormSection>
       </div>
+      <FormErrorSummary errors={errors} />
       <div className="sticky bottom-0 mt-5 flex justify-end border-t border-slate-200 bg-[#f6f7f8]/95 py-4 backdrop-blur">
         <button className="btn btn-primary" disabled={pending}>
           <Save className="size-4" />

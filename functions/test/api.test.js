@@ -38,7 +38,7 @@ const draft = (overrides = {}) => ({
   functionTag: 'regulate',
   primaryLabel: 'brain',
   supportingLabels: [],
-  level: 'essential',
+  level: 'beginner',
   isPremium: false,
   isActive: false,
   ...overrides,

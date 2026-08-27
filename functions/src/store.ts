@@ -124,21 +124,29 @@ export async function listUsers(status: 'all' | 'silent' | 'unlocked' | 'locked'
   const users: AppUser[] = [];
   let scanCursor = cursor;
   let lastId: string | null = null;
-  let exhausted = false;
+  // Whether anything at all remains after `lastId`. It is not enough to ask whether the last scan
+  // had more rows: filling the page mid-scan leaves unread rows behind in that same scan, and
+  // reporting the end there silently drops them from the listing.
+  let more = false;
 
-  for (let page = 0; page < MAX_SCAN_PAGES && users.length < limit && !exhausted; page += 1) {
+  for (let page = 0; page < MAX_SCAN_PAGES; page += 1) {
     const scan = await usersPage(collection.orderBy('createdAt', 'desc'), limit, scanCursor);
-    exhausted = !scan.more;
-    if (!scan.users.length) break;
+    if (!scan.users.length) { more = false; break; }
+
+    let consumedWholeScan = true;
     for (const user of scan.users) {
-      if (users.length >= limit) break;
+      if (users.length >= limit) { consumedWholeScan = false; break; }
       if (matchesStatus(user, status)) users.push(user);
       lastId = user.id;
     }
+
+    more = !consumedWholeScan || scan.more;
+    if (users.length >= limit) break;
+    if (!scan.more) { more = false; break; }
     scanCursor = scan.lastId ?? undefined;
   }
 
-  return { users, nextCursor: exhausted ? null : lastId };
+  return { users, nextCursor: more ? lastId : null };
 }
 
 export async function getUser(id: string) { return one<Omit<AppUser, 'id'>>(collections.users, id, 'User') as Promise<AppUser>; }
