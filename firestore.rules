@@ -1,35 +1,178 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
-    // The `admin` custom claim is the authority here. Reading a users/{uid} profile instead would spend one of the
-    // ten document-access calls a request is allowed and would deny outright for members without a profile document.
-    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
 
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    // =========================
+    // USERS
+    // =========================
+    // A new document may only claim the verification Firebase Auth already
+    // records for the caller — false for email/password, true for Google.
+    function mirrorsAuthVerification() {
+      return request.resource.data.get('verified', false)
+          == request.auth.token.get('email_verified', false);
+    }
+
+    // `verified` is turned on by the verifyEmailOtp function and `accessLevel`
+    // is granted by an admin, so an owner may write every other field but never
+    // move those two. The Admin SDK inside a Cloud Function bypasses these
+    // rules, which is how verified becomes true.
+    function keepsPrivileges() {
+      return request.resource.data.get('verified', false) == resource.data.get('verified', false)
+          && request.resource.data.get('accessLevel', '') == resource.data.get('accessLevel', '')
+          && request.resource.data.get('rhythmDaysCount', 0) == resource.data.get('rhythmDaysCount', 0)
+          && request.resource.data.get('lastCheckOffAt', null) == resource.data.get('lastCheckOffAt', null);
+    }
+
+    match /users/{userId} {
+      // Admin can read everyone.
+      // Normal user can read only themselves.
+      allow read: if isAdmin() || isOwner(userId);
+
+      // Admin can create/update/delete anyone.
+      // Normal user can only modify their own document.
+      allow create: if isAdmin() || (isOwner(userId) && mirrorsAuthVerification());
+      allow update: if isAdmin() || (isOwner(userId) && keepsPrivileges());
+      allow delete: if isAdmin() || isOwner(userId);
+    }
+
+    // What was ticked off on one day, one document per day.
+    //
+    // Yours alone to read and write — but only the raw list. The streak it adds
+    // up to is written by the onCheckOffWritten trigger, which is why
+    // `rhythmDaysCount` is frozen above: a client that could set its own streak
+    // could set it to anything.
+    match /users/{userId}/checkOffs/{day} {
+      allow read, write: if isAdmin() || isOwner(userId);
+    }
+
+    // The one answer a day was given: how much of the plan fits today, at
+    // `users/{uid}/dayPlans/{yyyy-MM-dd}`.
+    //
+    // Yours alone, like the ticks above. Nothing here is granted or computed
+    // elsewhere — the depth is worked out on the client from an answer only the
+    // owner gives — so there is no field to freeze, and the path is the whole
+    // ownership check.
+    match /users/{userId}/dayPlans/{day} {
+      allow read, write: if isAdmin() || isOwner(userId);
+    }
+
+    // Where one day differs from the routines behind it: a mode turned down, an
+    // action moved or dropped — at `users/{uid}/agendaDays/{yyyy-MM-dd}`.
+    //
+    // Yours alone, like the ticks above. Only differences live here, and every
+    // one of them is the owner's own choice, so there is no field to freeze and
+    // the path is the whole ownership check.
+    match /users/{userId}/agendaDays/{day} {
+      allow read, write: if isAdmin() || isOwner(userId);
+    }
+
+    // One routine the user built, with every action in it, at
+    // `users/{uid}/routines/{routineId}`.
+    //
+    // Yours alone to read and write, all of it. Unlike the user document there
+    // is no field to freeze here: nothing in a routine is granted by an admin
+    // or computed by a trigger, so there is nothing a user could claim by
+    // writing it themselves.
+    //
+    // The path is what enforces ownership. A routine is only ever reachable
+    // under its own owner's document, so there is no `ownerId` field to check
+    // and no way to write one routine into somebody else's list.
+    //
+    // Actions sit in an array on the routine rather than in a subcollection of
+    // their own — see `RoutineService` for why — so they are covered by this
+    // one rule and need no second match block.
+    match /users/{userId}/routines/{routineId} {
+      allow read, write: if isAdmin() || isOwner(userId);
+    }
+
+    // What this account wants to be reminded about, per trigger. Build 1 has
+    // one row; the shape is what stops a second notification type needing a
+    // migration.
+    match /users/{userId}/notificationSettings/{triggerKey} {
+      allow read, write: if isAdmin() || isOwner(userId);
+    }
+
+    // What was scheduled, what fired, what was opened, and what was suppressed
+    // and why — the history the Build 2 timing layer learns from.
+    //
+    // Written by the client because the client is what schedules: these are
+    // local notifications, decided on the device in advance, so the server has
+    // nothing to record. Nothing here is granted or computed elsewhere, so
+    // there is no field to freeze.
+    match /users/{userId}/notificationLog/{entryId} {
+      allow read, write: if isAdmin() || isOwner(userId);
+    }
+
+    // Notification copy, one record per trigger. Content like every other
+    // string: an admin writes it, the app reads it, and changing it needs no
+    // release.
+    match /notificationTemplates/{triggerKey} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // A pending verification code. Only the Cloud Function touches it, through
+    // the Admin SDK, so the client is shut out completely — otherwise a user
+    // could read the code they are supposed to be proving they received.
+    match /emailOtps/{userId} {
+      allow read, write: if false;
+    }
+
+    // =========================
+    // OTHER COLLECTIONS
+    // =========================
+
+    // Content the app only ever reads. Writing is an admin's job, so nothing a
+    // user does can change what every other user sees.
+    //
+    // Members are shown active stacks only; an admin sees drafts too. Context
+    // rows follow whichever stack they belong to — the repeated get() resolves
+    // to one cached document access per stack, not one per row.
     match /stacks/{stackId} {
       allow read: if isAdmin() || (signedIn() && resource.data.isActive == true);
-      allow write: if false;
+      allow write: if isAdmin();
     }
+
+    // Readable by anyone signed in, without checking the parent stack.
+    //
+    // Looking the stack up per row was tried and cannot work: a query is
+    // refused outright if a single document in it fails, so one draft stack's
+    // rows broke every fetch — and rules allow only ten document lookups per
+    // query, so it would have broken again at ten stacks regardless.
+    //
+    // The cost is that a draft stack's rows can be read, though the stack
+    // itself still cannot. To close that too, put `isActive` on the rows
+    // themselves and filter on it here — no lookup, no limit.
     match /contextRows/{rowId} {
-      // Members read context rows one stack at a time; the repeated get() resolves to a single cached access call.
-      allow read: if isAdmin() || (signedIn() && get(/databases/$(database)/documents/stacks/$(resource.data.stackId)).data.isActive == true);
-      allow write: if false;
+      allow read: if signedIn();
+      allow write: if isAdmin();
     }
+
     match /microActions/{actionId} {
       allow read: if signedIn();
-      allow write: if false;
+      allow write: if isAdmin();
     }
+
     match /labels/{labelId} {
       allow read: if signedIn();
-      allow write: if false;
+      allow write: if isAdmin();
     }
-    match /users/{userId} {
-      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
-      allow write: if false;
-    }
-    // Admin action history is written and read only by the server.
+
     match /auditLogs/{entryId} {
-      allow read, write: if false;
+      allow read, write: if isAdmin();
     }
   }
 }

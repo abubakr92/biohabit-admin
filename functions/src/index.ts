@@ -4,10 +4,10 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { ZodError } from 'zod';
 import { adminAuth } from './firebase';
-import { contextRowSchema, labelSchema, microActionSchema, reorderSchema, stackSchema, userQuerySchema } from './schemas';
+import { contextRowSchema, labelSchema, microActionSchema, notificationTemplateSchema, reorderSchema, stackSchema, userQuerySchema } from './schemas';
 import * as store from './store';
 import * as routines from './routines';
-import type { ContextRowInput, LabelInput, MicroActionInput, StackInput } from './types';
+import type { ContextRowInput, LabelInput, MicroActionInput, NotificationTemplateInput, StackInput } from './types';
 
 setGlobalOptions({ region: 'europe-west4', maxInstances: 10 });
 const app = express();
@@ -86,6 +86,12 @@ app.post('/labels', route(async (request, response) => { const input = labelSche
 app.patch('/labels/:id', route(async (request, response) => { const existing = (await store.listLabels()).find((label) => label.id === request.params.id); if (!existing) throw new store.HttpError(404, 'Label not found.'); const input = labelSchema.parse({ key: existing.key, name: existing.name, ...request.body }) as LabelInput; const label = await store.updateLabel(request.params.id, input); await audit(response, 'update', 'label', request.params.id); response.json(label); }));
 app.delete('/labels/:id', route(async (request, response) => { await store.deleteLabel(request.params.id); await audit(response, 'delete', 'label', request.params.id); response.status(204).send(); }));
 
+// Notification copy the app renders. Editable content, not hard-coded app strings.
+app.get('/notification-templates', route(async (_request, response) => { response.json(await store.listNotificationTemplates()); }));
+app.post('/notification-templates', route(async (request, response) => { const input = notificationTemplateSchema.parse(request.body) as NotificationTemplateInput; const template = await store.createNotificationTemplate(input); await audit(response, 'create', 'notificationTemplate', template.id); response.status(201).json(template); }));
+app.patch('/notification-templates/:id', route(async (request, response) => { const existing = (await store.listNotificationTemplates()).find((template) => template.id === request.params.id); if (!existing) throw new store.HttpError(404, 'Notification template not found.'); const input = notificationTemplateSchema.parse({ ...templateInput(existing), ...request.body }) as NotificationTemplateInput; const template = await store.updateNotificationTemplate(request.params.id, input); await audit(response, 'update', 'notificationTemplate', request.params.id); response.json(template); }));
+app.delete('/notification-templates/:id', route(async (request, response) => { await store.deleteNotificationTemplate(request.params.id); await audit(response, 'delete', 'notificationTemplate', request.params.id); response.status(204).send(); }));
+
 // Member-owned routines. Read-only by design: no create, update or delete route exists here.
 app.get('/routines', route(async (request, response) => { response.json(await routines.listRoutines({ search: String(request.query.search ?? ''), source: String(request.query.source ?? ''), status: String(request.query.status ?? ''), mode: String(request.query.mode ?? ''), userId: String(request.query.userId ?? '') })); }));
 app.get('/routines/:id', route(async (request, response) => { response.json(await routines.getRoutine(request.params.id)); }));
@@ -113,8 +119,9 @@ function fieldErrors(error: ZodError): Record<string, string[]> {
   for (const issue of error.issues) { const key = issue.path.join('.') || '_'; (result[key] ??= []).push(issue.message); }
   return result;
 }
-function stackInput(stack: StackInput): StackInput { return { title: stack.title, description: stack.description, coherence: stack.coherence, suggestedTiming: stack.suggestedTiming, functionTag: stack.functionTag, primaryLabel: stack.primaryLabel, supportingLabels: stack.supportingLabels, level: stack.level, daypart: stack.daypart ?? null, isPremium: stack.isPremium, isActive: stack.isActive }; }
+function stackInput(stack: StackInput): StackInput { return { title: stack.title, description: stack.description, coherence: stack.coherence, suggestedTiming: stack.suggestedTiming, functionTag: stack.functionTag, primaryLabel: stack.primaryLabel, supportingLabels: stack.supportingLabels, level: stack.level, daypart: stack.daypart ?? null, stackOrder: stack.stackOrder ?? 0, isPremium: stack.isPremium, isActive: stack.isActive }; }
+function templateInput(template: NotificationTemplateInput): NotificationTemplateInput { return { triggerKey: template.triggerKey, title: template.title, body: template.body, deeplinkTarget: template.deeplinkTarget ?? '', isActive: template.isActive }; }
 function microActionInput(action: MicroActionInput): MicroActionInput { return { title: action.title, effect: action.effect, howTo: action.howTo, warning: action.warning, labels: action.labels, durationMin: action.durationMin, level: action.level, defaultFunctionTag: action.defaultFunctionTag ?? null }; }
-function contextInput(row: ContextRowInput): ContextRowInput { return { microActionId: row.microActionId, microActionTitle: row.microActionTitle, functionTag: row.functionTag ?? null, stackSortOrder: row.stackSortOrder, priorityOrder: row.priorityOrder, isOptional: row.isOptional, isActiveByDefault: row.isActiveByDefault, includedInMode: row.includedInMode, daypart: row.daypart, durationOverrideMin: row.durationOverrideMin, timingType: row.timingType, startTime: row.startTime, endTime: row.endTime, relativeToContextId: row.relativeToContextId, dependencyText: row.dependencyText, contextEffect: row.contextEffect, contextWarning: row.contextWarning, centreTime: row.centreTime, elasticityMin: row.elasticityMin }; }
+function contextInput(row: ContextRowInput): ContextRowInput { return { microActionId: row.microActionId, microActionTitle: row.microActionTitle, functionTag: row.functionTag ?? null, stackSortOrder: row.stackSortOrder, priorityOrder: row.priorityOrder, isOptional: row.isOptional, isActiveByDefault: row.isActiveByDefault, includedInMode: row.includedInMode, daypart: row.daypart ?? null, durationOverrideMin: row.durationOverrideMin, timingType: row.timingType, startTime: row.startTime, endTime: row.endTime, relativeToContextId: row.relativeToContextId, dependencyText: row.dependencyText, contextEffect: row.contextEffect, contextWarning: row.contextWarning, centreTime: row.centreTime, elasticityMin: row.elasticityMin }; }
 
 export const api = onRequest({ timeoutSeconds: 60, memory: '256MiB', invoker: 'public' }, app);

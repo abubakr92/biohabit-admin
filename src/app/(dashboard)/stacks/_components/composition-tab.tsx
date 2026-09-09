@@ -72,7 +72,7 @@ export function CompositionTab({ stack }: { stack: Stack }) {
       isOptional: false,
       isActiveByDefault: true,
       includedInMode: mode,
-      daypart: 'morning' as const,
+      daypart: null,
       durationOverrideMin: null,
       timingType: 'none' as const,
       startTime: null,
@@ -176,6 +176,8 @@ export function CompositionTab({ stack }: { stack: Stack }) {
                   <CompositionRow
                     key={row.id}
                     row={row}
+                    position={rows.findIndex((item) => item.id === row.id) + 1}
+                    stackDaypart={stack.daypart}
                     action={actions.find((action) => action.id === row.microActionId)}
                     onEdit={() => setSelectedId(row.id)}
                     onDelete={() => setDeleteId(row.id)}
@@ -202,6 +204,7 @@ export function CompositionTab({ stack }: { stack: Stack }) {
       />
       <ContextRowDrawer
         key={selected?.id ?? 'closed'}
+        stackDaypart={stack.daypart}
         inheritedFunction={
           actions.find((action) => action.id === selected?.microActionId)?.defaultFunctionTag ??
           null

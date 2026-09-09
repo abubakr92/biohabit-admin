@@ -12,7 +12,7 @@
     "firebase:emulators": "powershell -ExecutionPolicy Bypass -File scripts/start-firebase-emulators.ps1",
     "firebase:seed": "npm --prefix functions run seed:emulator",
     "firebase:functions:build": "npm --prefix functions run build",
-    "firebase:deploy": "npm --prefix functions run build && firebase deploy --only firestore:rules,firestore:indexes,functions:api --project biohabit",
+    "firebase:deploy": "npm --prefix functions run build && firebase deploy --only functions:api --project biohabit",
     "firebase:login": "firebase login",
     "verify:deployment": "node scripts/verify-deployment.mjs"
   },

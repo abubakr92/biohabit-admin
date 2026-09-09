@@ -80,13 +80,21 @@ export function MicroActionForm({
               en={register('howTo.en')}
               errors={errors.howTo}
             />
-            <BilingualField
-              label="Warning"
-              multiline
-              nl={register('warning.nl')}
-              en={register('warning.en')}
-              errors={errors.warning}
-            />
+            <div>
+              <BilingualField
+                label="Warning (optional)"
+                multiline
+                nl={register('warning.nl')}
+                en={register('warning.en')}
+                errors={errors.warning}
+              />
+              {/* Left empty on purpose where an action needs no caveat: the app omits its warning
+                  block when there is no text, so filler would put a warning where none belongs. */}
+              <p className="mt-1.5 text-xs text-slate-500">
+                Leave both blank when the action needs no caveat — the app then shows no warning at
+                all.
+              </p>
+            </div>
           </div>
         </FormSection>
         <FormSection

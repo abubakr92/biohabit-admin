@@ -21,7 +21,10 @@
     "set-admin": "npm run build && node lib/scripts/set-admin.js",
     "test:api": "node --test \"test/api.test.js\"",
     "migrate:classification": "npm run build && node lib/scripts/migrate-classification.js",
-    "repair-levels": "npm run build && node lib/scripts/repair-levels.js"
+    "repair-levels": "npm run build && node lib/scripts/repair-levels.js",
+    "fix:relative-timing": "npm run build && node lib/scripts/clear-relative-timing.js",
+    "fix:row-dayparts": "npm run build && node lib/scripts/normalise-row-dayparts.js",
+    "check-rules": "npm run build && node lib/scripts/check-rules.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

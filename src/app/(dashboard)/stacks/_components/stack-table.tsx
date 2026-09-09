@@ -107,10 +107,13 @@ export function StackTable({ data }: { data: Stack[] }) {
     },
     {
       key: 'daypart',
-      header: 'Daypart',
+      header: 'Daypart · order',
       render: (stack) =>
         stack.daypart ? (
-          <span className="text-slate-600">{labelFor(stack.daypart)}</span>
+          <span className="text-slate-600">
+            {labelFor(stack.daypart)}
+            <span className="ml-1.5 text-slate-400 tabular-nums">#{stack.stackOrder ?? 0}</span>
+          </span>
         ) : (
           <span className="text-slate-400" title="Required before this stack can be published">
             Not set

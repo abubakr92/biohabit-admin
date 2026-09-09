@@ -315,3 +315,107 @@ test('duplicating a stack yields a draft copy with its own rows', async () => {
   );
   assert.equal((await call(`/stacks/${copy.id}`, { method: 'DELETE' })).status, 204);
 });
+
+// ---------------------------------------------------------------------------
+// Admin checklist — A1, A6, B1
+// ---------------------------------------------------------------------------
+
+// A1. The client's report: the primary label came back empty after a save. The API must round-trip
+// the stored key untouched, so any loss is provably the form's, not the server's.
+test('A1 — a stack round-trips its primary label through create, read and patch', async () => {
+  const created = (
+    await call('/stacks', {
+      method: 'POST',
+      body: draft({ title: bilingual('Label persistence'), primaryLabel: 'sleep' }),
+    })
+  ).body;
+  assert.equal(created.primaryLabel, 'sleep');
+  assert.equal((await call(`/stacks/${created.id}`)).body.primaryLabel, 'sleep');
+
+  // A partial patch that never mentions the label must not clear it.
+  const patched = (
+    await call(`/stacks/${created.id}`, { method: 'PATCH', body: { stackOrder: 4 } })
+  ).body;
+  assert.equal(patched.primaryLabel, 'sleep', 'an unrelated patch leaves the label alone');
+  assert.equal(patched.stackOrder, 4, 'and the stack-level order is stored');
+
+  // An empty label is what the broken form was sending; the API must refuse it, never store it.
+  const cleared = await call(`/stacks/${created.id}`, {
+    method: 'PATCH',
+    body: { primaryLabel: '' },
+  });
+  assert.equal(cleared.status, 422);
+  assert.ok(cleared.body.fieldErrors.primaryLabel, 'reported against the field, not as a 500');
+  assert.equal((await call(`/stacks/${created.id}`, { method: 'DELETE' })).status, 204);
+});
+
+// A6. Warning optional, effect mandatory, over the wire.
+test('A6 — a micro-action saves with an empty warning but not an empty effect', async () => {
+  const action = (overrides = {}) => ({
+    title: bilingual('E2E warning'),
+    effect: bilingual('Supports something.'),
+    howTo: bilingual('Do the thing.'),
+    warning: bilingual(''),
+    labels: ['energy'],
+    durationMin: 2,
+    level: 'beginner',
+    ...overrides,
+  });
+  const created = await call('/micro-actions', { method: 'POST', body: action() });
+  assert.equal(created.status, 201);
+  assert.deepEqual(created.body.warning, bilingual(''), 'the blank warning is stored blank');
+  assert.deepEqual(
+    (await call(`/micro-actions/${created.body.id}`)).body.warning,
+    bilingual(''),
+    'and is still blank when read back, never auto-filled',
+  );
+
+  const noEffect = await call('/micro-actions', {
+    method: 'POST',
+    body: action({ effect: bilingual('') }),
+  });
+  assert.equal(noEffect.status, 422);
+  assert.ok(noEffect.body.fieldErrors['effect.en'] && noEffect.body.fieldErrors['effect.nl']);
+  assert.equal((await call(`/micro-actions/${created.body.id}`, { method: 'DELETE' })).status, 204);
+});
+
+// B1. Notification copy is admin content: full CRUD behind the same auth as the rest of the API.
+test('B1 — notification templates are managed over the API', async () => {
+  const existing = (await call('/notification-templates')).body;
+  for (const template of existing.filter((item) => item.triggerKey === 'e2e_trigger'))
+    await call(`/notification-templates/${template.id}`, { method: 'DELETE' });
+
+  const body = {
+    triggerKey: 'e2e_trigger',
+    title: bilingual('Series time'),
+    body: bilingual('Your first action is ready.'),
+    deeplinkTarget: 'biohabit://home',
+    isActive: true,
+  };
+  const created = await call('/notification-templates', { method: 'POST', body });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.id, 'e2e_trigger', 'addressed by trigger key, as the app reads it');
+
+  const duplicate = await call('/notification-templates', { method: 'POST', body });
+  assert.equal(duplicate.status, 409, 'one template per trigger');
+
+  // NL and EN are editable content: a wording change must not need an app release.
+  const patched = await call(`/notification-templates/${created.body.id}`, {
+    method: 'PATCH',
+    body: { body: { nl: 'Nieuwe tekst.', en: 'New copy.' } },
+  });
+  assert.equal(patched.status, 200);
+  assert.equal(patched.body.body.nl, 'Nieuwe tekst.');
+  assert.equal(patched.body.title.en, 'Series time', 'a partial patch keeps the rest');
+
+  const badKey = await call('/notification-templates', {
+    method: 'POST',
+    body: { ...body, triggerKey: 'Bad Key' },
+  });
+  assert.equal(badKey.status, 422);
+  assert.equal(
+    (await call(`/notification-templates/${created.body.id}`, { method: 'DELETE' })).status,
+    204,
+  );
+  assert.equal((await call('/notification-templates', { auth: false })).status, 401);
+});

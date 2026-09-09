@@ -47,6 +47,12 @@ export interface Stack {
   // The third axis stacks are classified on, alongside label and function. Null while a stack is
   // still a draft; required to publish.
   daypart: Daypart | null;
+  /**
+   * Orders two stacks that share a daypart, lowest first. Distinct from a context row's
+   * `stackSortOrder`, which orders micro-actions *inside* one stack — the two must never be
+   * conflated. A template-level field only: the app does not let members drag Home or Agenda.
+   */
+  stackOrder: number;
   isPremium: boolean;
   isActive: boolean;
   actionCount: number;
@@ -85,12 +91,23 @@ export interface ContextRow {
    * one stack normally lights more than one ring.
    */
   functionTag: FunctionTag | null;
+  /** The effective, visible order of this row inside its stack. Drag-and-drop owns it. */
   stackSortOrder: number;
+  /**
+   * Order within a mode, never depth. Retained because the v1.8 data model defines it, but nothing
+   * in this panel or the API sorts by it — `stackSortOrder` is the effective order. Kept rather
+   * than dropped: removing a spec field because its admin input is hidden is not the panel's call.
+   */
   priorityOrder: number;
   isOptional: boolean;
   isActiveByDefault: boolean;
   includedInMode: Mode;
-  daypart: Daypart;
+  /**
+   * Null means inherit the parent stack's daypart, and that is the default for a new row. A stored
+   * value is a deliberate override: this action runs in a different part of the day from the stack
+   * it belongs to, and the app places it accordingly.
+   */
+  daypart: Daypart | null;
   durationOverrideMin: number | null;
   timingType: TimingType;
   startTime: string | null;
@@ -101,6 +118,25 @@ export interface ContextRow {
   contextWarning: Bilingual;
   centreTime: string | null;
   elasticityMin: number | null;
+}
+
+/**
+ * Push copy the app renders, kept here so wording changes ship without an app release.
+ *
+ * Field names follow this database's camelCase convention; the specification writes them in
+ * snake_case (`trigger_key`, `title_nl`, …), exactly as it writes `stack_sort_order` for the
+ * stored `stackSortOrder`. `triggerKey` values stay verbatim from the spec — Build 1 defines
+ * `series_anchor`.
+ */
+export interface NotificationTemplate {
+  id: string;
+  triggerKey: string;
+  title: Bilingual;
+  body: Bilingual;
+  /** Where tapping the notification lands in the app. Empty when it just opens Home. */
+  deeplinkTarget: string;
+  isActive: boolean;
+  updatedAt: string;
 }
 
 export interface Label {

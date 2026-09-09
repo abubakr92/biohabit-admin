@@ -21,6 +21,7 @@ const empty: StackFormValues = {
   supportingLabels: [],
   level: 'beginner',
   daypart: null,
+  stackOrder: 0,
   isPremium: false,
   isActive: false,
 };
@@ -57,6 +58,7 @@ export function StackDetailsForm({
           supportingLabels: stack.supportingLabels,
           level: stack.level,
           daypart: stack.daypart ?? null,
+          stackOrder: stack.stackOrder ?? 0,
           isPremium: stack.isPremium,
           isActive: stack.isActive,
         }
@@ -123,12 +125,19 @@ export function StackDetailsForm({
             <label className="text-sm font-semibold">
               Primary label
               <select className="field mt-2" {...register('primaryLabel')}>
-                <option value="">Choose a label</option>
+                {/* Only offered while genuinely unset. A stored value must never be able to
+                    select its way back to "no label" by accident. */}
+                {!stack?.primaryLabel && <option value="">Choose a label</option>}
                 {labels.map((item) => (
                   <option key={item.id} value={item.key}>
                     {item.name.en}
                   </option>
                 ))}
+                {/* A key that has since been renamed or deleted still round-trips instead of
+                    resetting the field to empty on the next save. */}
+                {stack?.primaryLabel && !labels.some((item) => item.key === stack.primaryLabel) && (
+                  <option value={stack.primaryLabel}>{stack.primaryLabel} (unknown label)</option>
+                )}
               </select>
               {errors.primaryLabel && (
                 <span className="mt-1 block text-xs text-red-600">
@@ -154,6 +163,23 @@ export function StackDetailsForm({
               </span>
               {errors.daypart && (
                 <span className="mt-1 block text-xs text-red-600">{errors.daypart.message}</span>
+              )}
+            </label>
+            <label className="text-sm font-semibold">
+              Order within daypart
+              <input
+                type="number"
+                min="0"
+                step="1"
+                className="field mt-2"
+                {...register('stackOrder', { valueAsNumber: true })}
+              />
+              <span className="mt-1 block text-xs font-normal text-slate-500">
+                Orders two stacks that share a daypart, lowest first. This is not the order of the
+                actions inside the stack — drag those on the Composition tab.
+              </span>
+              {errors.stackOrder && (
+                <span className="mt-1 block text-xs text-red-600">{errors.stackOrder.message}</span>
               )}
             </label>
             <label className="text-sm font-semibold">

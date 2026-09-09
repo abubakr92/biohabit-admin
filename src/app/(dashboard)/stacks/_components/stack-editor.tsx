@@ -7,6 +7,8 @@ import type { SubmitHelpers } from '@/types/api';
 import type { StackFormValues } from '@/lib/validation/stack';
 import { applyFieldErrors } from '@/lib/api/field-errors';
 import { PageHeader } from '@/components/layout/page-header';
+import { LoadingState } from '@/components/data/loading-state';
+import { ErrorState } from '@/components/data/error-state';
 import { ConfirmDialog } from '@/components/data/confirm-dialog';
 import { StackDetailsForm } from './stack-details-form';
 import { CompositionTab } from './composition-tab';
@@ -95,13 +97,19 @@ export function StackEditor({ stack }: { stack?: Stack }) {
         {!stack && <span className="self-center text-xs text-slate-400">Save first to unlock</span>}
       </div>
       {tab === 'details' ? (
-        <StackDetailsForm
-          stack={stack}
-          labels={labels.data ?? []}
-          pending={create.isPending || update.isPending}
-          onSubmit={submit}
-          onBlockedActive={(message) => toast(message, 'error')}
-        />
+        labels.isLoading ? (
+          <LoadingState rows={6} />
+        ) : labels.isError ? (
+          <ErrorState message={labels.error.message} retry={() => labels.refetch()} />
+        ) : (
+          <StackDetailsForm
+            stack={stack}
+            labels={labels.data ?? []}
+            pending={create.isPending || update.isPending}
+            onSubmit={submit}
+            onBlockedActive={(message) => toast(message, 'error')}
+          />
+        )
       ) : stack ? (
         <CompositionTab stack={stack} />
       ) : null}

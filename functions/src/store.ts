@@ -1,8 +1,8 @@
 import type { Query } from 'firebase-admin/firestore';
-import type { AccessLevel, AppUser, CheckOffDay, CheckOffStep, ContextRow, ContextRowInput, DayActivity, Label, LabelInput, MicroAction, MicroActionInput, Mode, Stack, StackInput, UserActivity, UserPreferences } from './types';
+import type { AccessLevel, AppUser, CheckOffDay, CheckOffStep, ContextRow, ContextRowInput, DayActivity, Label, LabelInput, MicroAction, MicroActionInput, Mode, NotificationTemplate, NotificationTemplateInput, Stack, StackInput, UserActivity, UserPreferences } from './types';
 import { db } from './firebase';
 
-const collections = { stacks: 'stacks', contexts: 'contextRows', actions: 'microActions', labels: 'labels', users: 'users', audit: 'auditLogs', checkOffs: 'checkOffs' } as const;
+const collections = { stacks: 'stacks', contexts: 'contextRows', actions: 'microActions', labels: 'labels', users: 'users', audit: 'auditLogs', checkOffs: 'checkOffs', notifications: 'notificationTemplates' } as const;
 const rank: Record<Mode, number> = { essential: 0, balanced: 1, full: 2 };
 const SILENT_AFTER_MS = 259_200_000;
 
@@ -26,7 +26,15 @@ function durationFor(rows: ContextRow[], actions: MicroAction[], mode: Mode) {
 }
 
 function hydrate<T extends StackInput & { id: string; createdAt: string; updatedAt: string }>(stack: T, rows: ContextRow[], actions: MicroAction[]): Stack {
-  return { ...stack, actionCount: rows.length, modeDurations: { essential: durationFor(rows, actions, 'essential'), balanced: durationFor(rows, actions, 'balanced'), full: durationFor(rows, actions, 'full') } };
+  // `stackOrder` and `daypart` were added after these documents were written, so they arrive
+  // undefined on older records. Defaulting on read keeps every caller from having to defend
+  // against it and leaves the stored documents untouched.
+  return { ...stack, daypart: stack.daypart ?? null, stackOrder: stack.stackOrder ?? 0, actionCount: rows.length, modeDurations: { essential: durationFor(rows, actions, 'essential'), balanced: durationFor(rows, actions, 'balanced'), full: durationFor(rows, actions, 'full') } };
+}
+
+/** Same reason as `hydrate`: `functionTag` and `daypart` are absent on rows written before them. */
+function normaliseRow(row: ContextRow): ContextRow {
+  return { ...row, functionTag: row.functionTag ?? null, daypart: row.daypart ?? null };
 }
 
 // Fetches only the micro-actions a set of rows actually references, rather than the whole collection.
@@ -52,12 +60,13 @@ export async function getStack(id: string) { const stack = await one<StackInput 
 export async function createStack(input: StackInput) { const now = new Date().toISOString(); const reference = await db.collection(collections.stacks).add({ ...input, createdAt: now, updatedAt: now }); return getStack(reference.id); }
 export async function updateStack(id: string, input: StackInput) { await one<StackInput>(collections.stacks, id, 'Stack'); await db.collection(collections.stacks).doc(id).set({ ...input, updatedAt: new Date().toISOString() }, { merge: true }); return getStack(id); }
 export async function deleteStack(id: string) { const stack = await one<StackInput>(collections.stacks, id, 'Stack'); const rows = await listContextRows(id); const batch = db.batch(); rows.forEach((row) => batch.delete(db.collection(collections.contexts).doc(row.id))); batch.delete(db.collection(collections.stacks).doc(id)); await batch.commit(); return stack; }
-export async function duplicateStack(id: string) { const source = await getStack(id); const rows = await listContextRows(id); const now = new Date().toISOString(); const stackRef = db.collection(collections.stacks).doc(); const batch = db.batch(); batch.set(stackRef, { title: { nl: `${source.title.nl} (kopie)`, en: `${source.title.en} (copy)` }, description: source.description, coherence: source.coherence, suggestedTiming: source.suggestedTiming, functionTag: source.functionTag, primaryLabel: source.primaryLabel, supportingLabels: source.supportingLabels, level: source.level, daypart: source.daypart ?? null, isPremium: source.isPremium, isActive: false, createdAt: now, updatedAt: now }); const copiedIds = new Map<string, string>(); rows.forEach((row) => copiedIds.set(row.id, db.collection(collections.contexts).doc().id)); rows.forEach(({ id: rowId, stackId: _stackId, ...row }) => batch.set(db.collection(collections.contexts).doc(copiedIds.get(rowId)!), { ...row, relativeToContextId: row.relativeToContextId ? (copiedIds.get(row.relativeToContextId) ?? null) : null, stackId: stackRef.id })); await batch.commit(); return getStack(stackRef.id); }
+export async function duplicateStack(id: string) { const source = await getStack(id); const rows = await listContextRows(id); const now = new Date().toISOString(); const stackRef = db.collection(collections.stacks).doc(); const batch = db.batch(); batch.set(stackRef, { title: { nl: `${source.title.nl} (kopie)`, en: `${source.title.en} (copy)` }, description: source.description, coherence: source.coherence, suggestedTiming: source.suggestedTiming, functionTag: source.functionTag, primaryLabel: source.primaryLabel, supportingLabels: source.supportingLabels, level: source.level, daypart: source.daypart ?? null, stackOrder: source.stackOrder ?? 0, isPremium: source.isPremium, isActive: false, createdAt: now, updatedAt: now }); const copiedIds = new Map<string, string>(); rows.forEach((row) => copiedIds.set(row.id, db.collection(collections.contexts).doc().id)); rows.forEach(({ id: rowId, stackId: _stackId, ...row }) => batch.set(db.collection(collections.contexts).doc(copiedIds.get(rowId)!), { ...row, relativeToContextId: row.relativeToContextId ? (copiedIds.get(row.relativeToContextId) ?? null) : null, stackId: stackRef.id })); await batch.commit(); return getStack(stackRef.id); }
 
-export async function listContextRows(stackId: string) { const snapshot = await db.collection(collections.contexts).where('stackId', '==', stackId).orderBy('stackSortOrder', 'asc').get(); return snapshot.docs.map((document) => ({ ...(document.data() as Omit<ContextRow, 'id'>), id: document.id })) as ContextRow[]; }
+// Ordered by stackSortOrder — the effective, drag-and-drop-owned order. priorityOrder is never sorted by.
+export async function listContextRows(stackId: string) { const snapshot = await db.collection(collections.contexts).where('stackId', '==', stackId).orderBy('stackSortOrder', 'asc').get(); return snapshot.docs.map((document) => normaliseRow({ ...(document.data() as Omit<ContextRow, 'id'>), id: document.id } as ContextRow)); }
 async function validateRelative(row: ContextRowInput, stackId: string, currentId?: string) { if (row.timingType !== 'relative' || !row.relativeToContextId) return; if (row.relativeToContextId === currentId) throw new HttpError(422, 'A context row cannot depend on itself.'); const target = await one<Omit<ContextRow, 'id'>>(collections.contexts, row.relativeToContextId, 'Relative context row'); if (target.stackId !== stackId || target.stackSortOrder >= row.stackSortOrder) throw new HttpError(422, 'Relative timing may only reference an earlier row in the same stack.'); }
 export async function createContextRow(stackId: string, input: ContextRowInput) { await Promise.all([one<StackInput>(collections.stacks, stackId, 'Stack'), one<MicroActionInput>(collections.actions, input.microActionId, 'Micro-action')]); await validateRelative(input, stackId); const reference = await db.collection(collections.contexts).add({ ...input, stackId }); return { ...input, id: reference.id, stackId }; }
-export async function getContextRow(id: string) { return one<Omit<ContextRow, 'id'>>(collections.contexts, id, 'Context row') as Promise<ContextRow>; }
+export async function getContextRow(id: string) { return normaliseRow(await one<Omit<ContextRow, 'id'>>(collections.contexts, id, 'Context row') as ContextRow); }
 export async function updateContextRow(id: string, input: ContextRowInput) { const existing = await getContextRow(id); await validateRelative(input, existing.stackId, id); await db.collection(collections.contexts).doc(id).set(input, { merge: true }); return { ...input, id, stackId: existing.stackId }; }
 export async function deleteContextRow(id: string) { await getContextRow(id); const dependents = (await db.collection(collections.contexts).where('relativeToContextId', '==', id).get()).docs.map((document) => document.data() as Omit<ContextRow, 'id'>); if (dependents.length) throw new HttpError(409, `This row is referenced by: ${dependents.map((row) => row.microActionTitle.en).join(', ')}.`); await db.collection(collections.contexts).doc(id).delete(); }
 export async function reorderContextRows(stackId: string, ids: string[]) {
@@ -89,6 +98,46 @@ export async function updateLabel(id: string, input: LabelInput) {
   return (await listLabels()).find((label) => label.id === id)!;
 }
 export async function deleteLabel(id: string) { const label = await one<LabelInput>(collections.labels, id, 'Label'); const usage = await labelUsage(label.key); if (usage.length) throw new HttpError(409, `“${label.name.en}” is used by ${usage.join(', ')}.`); await db.collection(collections.labels).doc(id).delete(); }
+
+// --- Notification templates ------------------------------------------------
+// Push copy the app renders. Kept in Firestore so wording and NL/EN changes ship without an app
+// release.
+//
+// The trigger key IS the document id, matching the deployed security rule
+// (`match /notificationTemplates/{triggerKey}`): the app fetches
+// `notificationTemplates/series_anchor` straight by path rather than querying for it. That also
+// makes "one template per trigger" a property of the store rather than a check that could be
+// raced — two documents claiming the same trigger cannot exist.
+type StoredTemplate = Omit<NotificationTemplate, 'id' | 'triggerKey'>;
+const templateDoc = (triggerKey: string) => db.collection(collections.notifications).doc(triggerKey);
+const readTemplate = (id: string, data: Partial<StoredTemplate>): NotificationTemplate => ({ ...(data as StoredTemplate), id, triggerKey: id, deeplinkTarget: data.deeplinkTarget ?? '' });
+
+export async function listNotificationTemplates(): Promise<NotificationTemplate[]> {
+  const snapshot = await db.collection(collections.notifications).get();
+  return snapshot.docs.map((document) => readTemplate(document.id, document.data() as StoredTemplate)).sort((a, b) => a.triggerKey.localeCompare(b.triggerKey));
+}
+export async function createNotificationTemplate(input: NotificationTemplateInput) {
+  const { triggerKey, ...rest } = input;
+  const reference = templateDoc(triggerKey);
+  if ((await reference.get()).exists) throw new HttpError(409, `A template for trigger “${triggerKey}” already exists.`, { triggerKey: ['This trigger already has a template.'] });
+  const updatedAt = new Date().toISOString();
+  await reference.set({ ...rest, updatedAt });
+  return readTemplate(triggerKey, { ...rest, updatedAt });
+}
+export async function updateNotificationTemplate(id: string, input: NotificationTemplateInput) {
+  const { triggerKey, ...rest } = input;
+  if (!(await templateDoc(id).get()).exists) throw new HttpError(404, 'Notification template not found.');
+  // The key is the record's identity, so changing it would mean moving the document — and the app
+  // would keep reading the old path until it was told otherwise. Delete and recreate instead.
+  if (triggerKey !== id) throw new HttpError(422, 'The trigger key identifies this template and cannot be changed. Delete it and create a new one.', { triggerKey: ['Cannot be changed once created.'] });
+  const updatedAt = new Date().toISOString();
+  await templateDoc(id).set({ ...rest, updatedAt });
+  return readTemplate(id, { ...rest, updatedAt });
+}
+export async function deleteNotificationTemplate(id: string) {
+  if (!(await templateDoc(id).get()).exists) throw new HttpError(404, 'Notification template not found.');
+  await templateDoc(id).delete();
+}
 
 async function usersPage(query: Query, limit: number, cursorId?: string) {
   let scoped = query;

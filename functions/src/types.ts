@@ -6,13 +6,22 @@ export type AccessLevel = 'free' | 'premium' | 'test' | 'admin';
 // Difficulty, not mode. Must stay identical to the Level type in src/types/models.ts.
 export type Level = 'beginner' | 'intermediate' | 'advanced' | 'expert';
 export interface Bilingual { nl: string; en: string }
-export interface StackInput { title: Bilingual; description: Bilingual; coherence: Bilingual; suggestedTiming: Bilingual; functionTag: FunctionTag; primaryLabel: string; supportingLabels: string[]; level: Level; daypart: Daypart | null; isPremium: boolean; isActive: boolean }
+// `stackOrder` orders two stacks that share a daypart. It is not `stackSortOrder`, which orders
+// micro-actions inside one stack.
+export interface StackInput { title: Bilingual; description: Bilingual; coherence: Bilingual; suggestedTiming: Bilingual; functionTag: FunctionTag; primaryLabel: string; supportingLabels: string[]; level: Level; daypart: Daypart | null; stackOrder: number; isPremium: boolean; isActive: boolean }
 export interface Stack extends StackInput { id: string; actionCount: number; modeDurations: Record<Mode, number>; createdAt: string; updatedAt: string }
 export interface MicroActionInput { title: Bilingual; effect: Bilingual; howTo: Bilingual; warning: Bilingual; labels: string[]; durationMin: number; level: Level; defaultFunctionTag: FunctionTag | null }
 export interface MicroAction extends MicroActionInput { id: string; usedInStacksCount: number }
-export interface ContextRowInput { microActionId: string; microActionTitle: Bilingual; functionTag: FunctionTag | null; stackSortOrder: number; priorityOrder: number; isOptional: boolean; isActiveByDefault: boolean; includedInMode: Mode; daypart: Daypart; durationOverrideMin: number | null; timingType: TimingType; startTime: string | null; endTime: string | null; relativeToContextId: string | null; dependencyText: Bilingual; contextEffect: Bilingual; contextWarning: Bilingual; centreTime: string | null; elasticityMin: number | null }
+// `daypart: null` means inherit the parent stack's daypart; a value is a deliberate override.
+// `priorityOrder` is order within a mode, never depth, and nothing sorts by it — `stackSortOrder`
+// is the effective order.
+export interface ContextRowInput { microActionId: string; microActionTitle: Bilingual; functionTag: FunctionTag | null; stackSortOrder: number; priorityOrder: number; isOptional: boolean; isActiveByDefault: boolean; includedInMode: Mode; daypart: Daypart | null; durationOverrideMin: number | null; timingType: TimingType; startTime: string | null; endTime: string | null; relativeToContextId: string | null; dependencyText: Bilingual; contextEffect: Bilingual; contextWarning: Bilingual; centreTime: string | null; elasticityMin: number | null }
 export interface ContextRow extends ContextRowInput { id: string; stackId: string }
 export interface LabelInput { key: string; name: Bilingual }
+// Push copy, editable without an app release. camelCase here mirrors the spec's snake_case
+// (`trigger_key` → `triggerKey`), the same mapping `stack_sort_order` → `stackSortOrder` already uses.
+export interface NotificationTemplateInput { triggerKey: string; title: Bilingual; body: Bilingual; deeplinkTarget: string; isActive: boolean }
+export interface NotificationTemplate extends NotificationTemplateInput { id: string; updatedAt: string }
 export interface Label extends LabelInput { id: string; usageCount: number }
 export interface AppUser { id: string; email: string; accessLevel: AccessLevel; rhythmDaysCount: number; unlockedAt: string | null; lastCheckOffAt: string | null; createdAt: string }
 

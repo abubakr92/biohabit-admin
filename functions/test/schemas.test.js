@@ -220,3 +220,107 @@ test('function is optional on a context row and defaults to inheriting', () => {
     'a library action may leave its default unset',
   );
 });
+
+// ---------------------------------------------------------------------------
+// Admin checklist — A3, A4, A6, B1, B3
+// ---------------------------------------------------------------------------
+
+// A4. Orders two stacks that share a daypart. Deliberately not `stackSortOrder`, which orders
+// micro-actions inside one stack; conflating the two is the mistake the checklist warns against.
+test('A4 — a stack carries its own order, separate from a context row stackSortOrder', () => {
+  assert.equal(stackSchema.parse(draftStack()).stackOrder, 0, 'absent order defaults to 0');
+  assert.equal(stackSchema.parse(draftStack({ stackOrder: 3 })).stackOrder, 3);
+  assert.equal(stackSchema.safeParse(draftStack({ stackOrder: -1 })).success, false, 'negative');
+  assert.equal(stackSchema.safeParse(draftStack({ stackOrder: 1.5 })).success, false, 'fractional');
+  // The two order fields live on different records and must not be interchangeable.
+  assert.equal(Object.hasOwn(stackSchema.parse(draftStack()), 'stackSortOrder'), false);
+  assert.equal(Object.hasOwn(contextRowSchema.parse(row()), 'stackOrder'), false);
+});
+
+// A3. A row follows its stack unless it deliberately says otherwise, so the default is "inherit"
+// and an explicit value is an override the app is expected to honour.
+test('A3 — a context row daypart is inherit-by-default with an explicit override', () => {
+  const inherited = contextRowSchema.parse({ ...row(), daypart: undefined });
+  assert.equal(inherited.daypart, null, 'absent means inherit from the stack');
+  assert.equal(contextRowSchema.parse(row({ daypart: null })).daypart, null, 'null means inherit');
+  for (const daypart of ['morning', 'midday', 'evening'])
+    assert.equal(contextRowSchema.parse(row({ daypart })).daypart, daypart, `override: ${daypart}`);
+  assert.equal(contextRowSchema.safeParse(row({ daypart: 'night' })).success, false);
+});
+
+// A6. Warning optional, effect mandatory — and neither may drift into the other's rule. An empty
+// warning is meaningful: it is what tells the app to leave the warning block out entirely.
+test('A6 — warning is optional while effect stays mandatory', () => {
+  const action = (overrides = {}) => ({
+    title: bilingual('Hydration'),
+    effect: bilingual('Supports hydration.'),
+    howTo: bilingual('Drink a glass of water.'),
+    warning: bilingual('Stop if uncomfortable.'),
+    labels: ['energy'],
+    durationMin: 2,
+    level: 'beginner',
+    ...overrides,
+  });
+  const blank = microActionSchema.safeParse(action({ warning: bilingual('') }));
+  assert.equal(blank.success, true, 'an empty warning must save');
+  assert.deepEqual(blank.data.warning, bilingual(''), 'and must stay empty, never auto-filled');
+  assert.equal(
+    microActionSchema.safeParse(action({ warning: { nl: 'Let op.', en: '' } })).success,
+    true,
+    'one locale only is still allowed',
+  );
+  for (const effect of [bilingual(''), { nl: 'Effect', en: '' }, { nl: '', en: 'Effect' }])
+    assert.equal(
+      microActionSchema.safeParse(action({ effect })).success,
+      false,
+      `effect ${JSON.stringify(effect)} must be refused`,
+    );
+});
+
+// B3. One entry level, cumulative downstream: essential ⊂ balanced ⊂ full. A row states where it
+// enters and nothing more, so a gap cannot be expressed, let alone saved.
+test('B3 — mode entry is a single cumulative choice, so gaps cannot be stored', () => {
+  for (const includedInMode of ['essential', 'balanced', 'full'])
+    assert.equal(contextRowSchema.safeParse(row({ includedInMode })).success, true, includedInMode);
+  for (const bad of ['essential,full', ['essential', 'full'], 'none', null])
+    assert.equal(
+      contextRowSchema.safeParse(row({ includedInMode: bad })).success,
+      false,
+      `${JSON.stringify(bad)} must be refused`,
+    );
+  // priorityOrder orders rows within a mode; it is never the mode depth.
+  assert.equal(contextRowSchema.parse(row({ priorityOrder: 4 })).includedInMode, 'essential');
+});
+
+// B1. Notification copy is content, edited here rather than compiled into the app.
+test('B1 — a notification template needs a trigger key and bilingual copy', () => {
+  const { notificationTemplateSchema } = require('../lib/schemas');
+  const template = (overrides = {}) => ({
+    triggerKey: 'series_anchor',
+    title: bilingual('Time for your series'),
+    body: bilingual('Your first action is ready.'),
+    deeplinkTarget: 'biohabit://home',
+    isActive: true,
+    ...overrides,
+  });
+  assert.equal(notificationTemplateSchema.safeParse(template()).success, true);
+  assert.equal(
+    notificationTemplateSchema.parse({ ...template(), deeplinkTarget: undefined }).deeplinkTarget,
+    '',
+    'no deeplink means the notification just opens the app',
+  );
+  for (const key of ['Series Anchor', 'series-anchor', 'series anchor', ''])
+    assert.equal(
+      notificationTemplateSchema.safeParse(template({ triggerKey: key })).success,
+      false,
+      `trigger key ${JSON.stringify(key)} must be refused`,
+    );
+  // Both locales are content the app renders, so neither may ship empty.
+  for (const field of ['title', 'body'])
+    for (const value of [bilingual(''), { nl: 'x', en: '' }, { nl: '', en: 'x' }])
+      assert.equal(
+        notificationTemplateSchema.safeParse(template({ [field]: value })).success,
+        false,
+        `${field} ${JSON.stringify(value)} must be refused`,
+      );
+});

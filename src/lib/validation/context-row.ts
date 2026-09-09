@@ -14,7 +14,8 @@ export const contextRowSchema = z
     isOptional: z.boolean(),
     isActiveByDefault: z.boolean(),
     includedInMode: z.enum(['essential', 'balanced', 'full']),
-    daypart: z.enum(['morning', 'midday', 'evening']),
+    // Null means inherit the parent stack's daypart; a value is an explicit override.
+    daypart: z.enum(['morning', 'midday', 'evening']).nullable(),
     durationOverrideMin: z.number().min(1).nullable(),
     timingType: z.enum(['none', 'exact', 'window', 'relative', 'anchor']),
     startTime: timeOrNull,

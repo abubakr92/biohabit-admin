@@ -2,11 +2,18 @@
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Save, Trash2, X } from 'lucide-react';
-import type { ContextRow } from '@/types/models';
+import type { ContextRow, Daypart } from '@/types/models';
 import type { SubmitHelpers } from '@/types/api';
 import { contextRowSchema, type ContextRowFormValues } from '@/lib/validation/context-row';
 import { derivedModes } from '@/lib/utils/modes';
-import { dayparts, functionTags, labelFor, modes, timingTypes } from '@/lib/constants/enums';
+import {
+  buildOneTimingTypes,
+  dayparts,
+  functionTags,
+  labelFor,
+  modes,
+} from '@/lib/constants/enums';
+import { DAYPART_WINDOWS } from '@/lib/constants/rules';
 import { BilingualField } from '@/components/form/bilingual-field';
 import { TimingTypeFields } from '@/components/form/timing-type-fields';
 
@@ -21,7 +28,7 @@ const toFormValues = (row: ContextRow | null): ContextRowFormValues => ({
   isOptional: row?.isOptional ?? false,
   isActiveByDefault: row?.isActiveByDefault ?? true,
   includedInMode: row?.includedInMode ?? 'essential',
-  daypart: row?.daypart ?? 'morning',
+  daypart: row?.daypart ?? null,
   durationOverrideMin: row?.durationOverrideMin ?? null,
   timingType: row?.timingType ?? 'none',
   startTime: row?.startTime ?? null,
@@ -42,6 +49,7 @@ const toFormValues = (row: ContextRow | null): ContextRowFormValues => ({
 export function ContextRowDrawer({
   row,
   rows,
+  stackDaypart,
   inheritedFunction,
   open,
   pending,
@@ -51,6 +59,8 @@ export function ContextRowDrawer({
 }: {
   row: ContextRow | null;
   rows: ContextRow[];
+  /** The parent stack's daypart, named on the inherit option so the effect is visible. */
+  stackDaypart: Daypart | null;
   /** The micro-action's default function, named on the inherit option so the effect is visible. */
   inheritedFunction?: string | null;
   open: boolean;
@@ -73,6 +83,7 @@ export function ContextRowDrawer({
   });
   if (!open || !row) return null;
   const timingType = watch('timingType');
+  const daypart = watch('daypart');
   const included = watch('includedInMode');
   const dependency = watch('dependencyText') ?? { nl: '', en: '' };
   const earlierRows = rows.filter((item) => item.stackSortOrder < row.stackSortOrder);
@@ -126,15 +137,34 @@ export function ContextRowDrawer({
                       .join(', ')}
                   </span>
                 </label>
-                <label className="text-sm font-semibold">
-                  Order within mode
-                  <input
-                    type="number"
-                    className="field mt-2"
-                    {...register('priorityOrder', { valueAsNumber: true })}
-                  />
+                <div className="text-sm font-semibold">
+                  Effective order
+                  <p className="field mt-2 flex items-center bg-slate-50 text-slate-600">
+                    {row.stackSortOrder + 1} of {rows.length}
+                  </p>
                   <span className="mt-2 block text-xs font-normal text-slate-500">
-                    Controls ordering, never depth.
+                    Set by dragging rows in the list. Read-only here.
+                  </span>
+                </div>
+                <label className="text-sm font-semibold">
+                  Function
+                  <select
+                    className="field mt-2"
+                    {...register('functionTag', { setValueAs: (value) => value || null })}
+                  >
+                    <option value="">
+                      Inherit from micro-action
+                      {inheritedFunction ? ` · ${labelFor(inheritedFunction)}` : ' · not set'}
+                    </option>
+                    {functionTags.map((item) => (
+                      <option key={item} value={item}>
+                        {labelFor(item)}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-2 block text-xs font-normal text-slate-500">
+                    Which Home ring this action lights inside this stack. One stack may light more
+                    than one.
                   </span>
                 </label>
               </div>
@@ -144,13 +174,25 @@ export function ContextRowDrawer({
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="text-sm font-semibold">
                   Daypart
-                  <select className="field mt-2" {...register('daypart')}>
+                  <select
+                    className="field mt-2"
+                    {...register('daypart', { setValueAs: (value) => value || null })}
+                  >
+                    <option value="">
+                      Inherit from stack
+                      {stackDaypart ? ` · ${labelFor(stackDaypart)}` : ' · not set'}
+                    </option>
                     {dayparts.map((item) => (
                       <option key={item} value={item}>
-                        {labelFor(item)}
+                        {labelFor(item)} · {DAYPART_WINDOWS[item]}
                       </option>
                     ))}
                   </select>
+                  <span className="mt-2 block text-xs font-normal text-slate-500">
+                    {daypart
+                      ? 'Overrides the stack: the app places this action in this part of the day.'
+                      : 'Follows the stack. Choose a value only when this action runs elsewhere in the day.'}
+                  </span>
                 </label>
                 <Controller
                   name="durationOverrideMin"
@@ -204,11 +246,14 @@ export function ContextRowDrawer({
                     changeTiming(e.target.value as ContextRowFormValues['timingType'])
                   }
                 >
-                  {timingTypes.map((item) => (
+                  {buildOneTimingTypes.map((item) => (
                     <option key={item} value={item}>
                       {labelFor(item)}
                     </option>
                   ))}
+                  {timingType === 'relative' && (
+                    <option value="relative">Relative · not used in Build 1</option>
+                  )}
                 </select>
               </label>
               <div className="mt-4">

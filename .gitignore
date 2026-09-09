@@ -50,3 +50,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Operational backups written by the one-off data fix scripts in functions/src/scripts.
+functions/*-backup-*.json

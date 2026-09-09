@@ -17,16 +17,20 @@ export const seedContextRows: ContextRow[] = Array.from({ length: 8 }, (_, stack
       isOptional: rowIndex === 3,
       isActiveByDefault: rowIndex !== 3,
       includedInMode: modeSequence[rowIndex],
-      daypart: dayparts[stackIndex % 3],
+      daypart: rowIndex === 3 ? dayparts[(stackIndex + 1) % 3] : null,
       durationOverrideMin: null,
-      timingType: rowIndex === 0 ? 'anchor' : rowIndex === 2 ? 'relative' : 'none',
-      startTime: rowIndex === 0 ? (stackIndex % 3 === 2 ? '21:30' : '07:30') : null,
-      endTime: null,
-      relativeToContextId: rowIndex === 2 ? `context-${stackIndex + 1}-2` : null,
-      dependencyText: {
-        nl: rowIndex === 2 ? 'Na de vorige actie.' : '',
-        en: rowIndex === 2 ? 'After the previous action.' : '',
-      },
+      timingType: rowIndex === 0 ? 'anchor' : rowIndex === 2 ? 'window' : 'none',
+      startTime:
+        rowIndex === 0
+          ? stackIndex % 3 === 2
+            ? '21:30'
+            : '07:30'
+          : rowIndex === 2
+            ? '12:00'
+            : null,
+      endTime: rowIndex === 2 ? '14:00' : null,
+      relativeToContextId: null,
+      dependencyText: { nl: '', en: '' },
       contextEffect: { nl: `Helpt binnen ${stackIndex + 1}.`, en: `Supports this stack context.` },
       contextWarning: { nl: 'Pas aan waar nodig.', en: 'Adapt where needed.' },
       centreTime: null,

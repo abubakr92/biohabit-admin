@@ -1,10 +1,11 @@
 import { ApiError } from '@/lib/api/client';
 import { toDate } from '@/lib/utils/format';
-import type { ContextRow, Label, MicroAction, Stack } from '@/types/models';
+import type { ContextRow, Label, MicroAction, NotificationTemplate, Stack } from '@/types/models';
 import { seedStacks } from './data/stacks';
 import { seedMicroActions } from './data/micro-actions';
 import { seedContextRows } from './data/context-rows';
 import { seedLabels } from './data/labels';
+import { seedNotificationTemplates } from './data/notification-templates';
 import { seedUsers } from './data/users';
 import {
   divergenceFor,
@@ -18,6 +19,7 @@ let stacks = structuredClone(seedStacks);
 let microActions = structuredClone(seedMicroActions);
 let contextRows = structuredClone(seedContextRows);
 let labels = structuredClone(seedLabels);
+let notificationTemplates = structuredClone(seedNotificationTemplates);
 const users = structuredClone(seedUsers);
 const routines = structuredClone(seedRoutines);
 
@@ -208,6 +210,45 @@ export async function mockRequest<T>(fullPath: string, init: RequestInit = {}): 
         `“${item.name.en}” is used ${item.usageCount} times and cannot be deleted.`,
       );
     labels = labels.filter((value) => value.id !== labelDetail[1]);
+    return undefined as T;
+  }
+
+  if (path === '/notification-templates' && method === 'GET')
+    return structuredClone(notificationTemplates) as T;
+  if (path === '/notification-templates' && method === 'POST') {
+    const input = body<Omit<NotificationTemplate, 'id' | 'updatedAt'>>(init)!;
+    if (notificationTemplates.some((value) => value.triggerKey === input.triggerKey))
+      throw new ApiError(409, `A template for trigger “${input.triggerKey}” already exists.`, {
+        triggerKey: ['This trigger already has a template.'],
+      });
+    const item: NotificationTemplate = { ...input, id: id(), updatedAt: new Date().toISOString() };
+    notificationTemplates.push(item);
+    return structuredClone(item) as T;
+  }
+  const templateDetail = path.match(/^\/notification-templates\/([^/]+)$/);
+  if (templateDetail && method === 'PATCH') {
+    const index = notificationTemplates.findIndex((value) => value.id === templateDetail[1]);
+    if (index < 0) throw new ApiError(404, 'Notification template not found.');
+    const input = body<Partial<NotificationTemplate>>(init) ?? {};
+    if (
+      input.triggerKey &&
+      notificationTemplates.some(
+        (value) => value.triggerKey === input.triggerKey && value.id !== templateDetail[1],
+      )
+    )
+      throw new ApiError(409, `A template for trigger “${input.triggerKey}” already exists.`, {
+        triggerKey: ['This trigger already has a template.'],
+      });
+    notificationTemplates[index] = {
+      ...notificationTemplates[index],
+      ...input,
+      id: notificationTemplates[index].id,
+      updatedAt: new Date().toISOString(),
+    };
+    return structuredClone(notificationTemplates[index]) as T;
+  }
+  if (templateDetail && method === 'DELETE') {
+    notificationTemplates = notificationTemplates.filter((value) => value.id !== templateDetail[1]);
     return undefined as T;
   }
 

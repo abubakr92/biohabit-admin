@@ -9,6 +9,10 @@ export const endpoints = {
   contextRows: { detail: (id: string) => `/context-rows/${id}`, reorder: '/context-rows/reorder' },
   microActions: { list: '/micro-actions', detail: (id: string) => `/micro-actions/${id}` },
   labels: { list: '/labels', detail: (id: string) => `/labels/${id}` },
+  notificationTemplates: {
+    list: '/notification-templates',
+    detail: (id: string) => `/notification-templates/${id}`,
+  },
   users: {
     list: '/users',
     detail: (id: string) => `/users/${id}`,
