@@ -9,6 +9,8 @@ export const endpoints = {
   contextRows: { detail: (id: string) => `/context-rows/${id}`, reorder: '/context-rows/reorder' },
   microActions: { list: '/micro-actions', detail: (id: string) => `/micro-actions/${id}` },
   labels: { list: '/labels', detail: (id: string) => `/labels/${id}` },
+  // A fixed list of seven: read and edit only.
+  moments: { list: '/moments', detail: (key: string) => `/moments/${key}` },
   notificationTemplates: {
     list: '/notification-templates',
     detail: (id: string) => `/notification-templates/${id}`,

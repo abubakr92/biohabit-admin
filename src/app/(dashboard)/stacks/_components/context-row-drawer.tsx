@@ -2,7 +2,7 @@
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Save, Trash2, X } from 'lucide-react';
-import type { ContextRow, Daypart } from '@/types/models';
+import type { ContextRow, Daypart, FunctionTag } from '@/types/models';
 import type { SubmitHelpers } from '@/types/api';
 import { contextRowSchema, type ContextRowFormValues } from '@/lib/validation/context-row';
 import { derivedModes } from '@/lib/utils/modes';
@@ -50,7 +50,7 @@ export function ContextRowDrawer({
   row,
   rows,
   stackDaypart,
-  inheritedFunction,
+  stackFunction,
   open,
   pending,
   onClose,
@@ -61,8 +61,8 @@ export function ContextRowDrawer({
   rows: ContextRow[];
   /** The parent stack's daypart, named on the inherit option so the effect is visible. */
   stackDaypart: Daypart | null;
-  /** The micro-action's default function, named on the inherit option so the effect is visible. */
-  inheritedFunction?: string | null;
+  /** The parent stack's function, named on the inherit option so the effect is visible. */
+  stackFunction: FunctionTag;
   open: boolean;
   pending?: boolean;
   onClose: () => void;
@@ -152,10 +152,7 @@ export function ContextRowDrawer({
                     className="field mt-2"
                     {...register('functionTag', { setValueAs: (value) => value || null })}
                   >
-                    <option value="">
-                      Inherit from micro-action
-                      {inheritedFunction ? ` · ${labelFor(inheritedFunction)}` : ' · not set'}
-                    </option>
+                    <option value="">Inherit from stack · {labelFor(stackFunction)}</option>
                     {functionTags.map((item) => (
                       <option key={item} value={item}>
                         {labelFor(item)}
@@ -163,8 +160,9 @@ export function ContextRowDrawer({
                     ))}
                   </select>
                   <span className="mt-2 block text-xs font-normal text-slate-500">
-                    Which Home ring this action lights inside this stack. One stack may light more
-                    than one.
+                    {watch('functionTag')
+                      ? 'Overrides the stack’s function for this action.'
+                      : 'Follows the stack’s function.'}
                   </span>
                 </label>
               </div>

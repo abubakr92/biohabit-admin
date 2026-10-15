@@ -10,7 +10,9 @@ import { dayparts, functionTags, labelFor, levels } from '@/lib/constants/enums'
 import { DAYPART_WINDOWS } from '@/lib/constants/rules';
 import { missingForPublish, stackSchema, type StackFormValues } from '@/lib/validation/stack';
 import type { SubmitHelpers } from '@/types/api';
-import type { Label, Stack } from '@/types/models';
+import type { ContextRow, Label, Moment, Stack } from '@/types/models';
+import { segmentsOf } from '@/lib/utils/anchors';
+import { SegmentAnchors } from './segment-anchors';
 const empty: StackFormValues = {
   title: { nl: '', en: '' },
   description: { nl: '', en: '' },
@@ -22,18 +24,24 @@ const empty: StackFormValues = {
   level: 'beginner',
   daypart: null,
   stackOrder: 0,
+  defaultAnchors: {},
   isPremium: false,
   isActive: false,
 };
 export function StackDetailsForm({
   stack,
   labels,
+  moments,
+  rows,
   pending,
   onSubmit,
   onBlockedActive,
 }: {
   stack?: Stack;
   labels: Label[];
+  moments: Moment[];
+  /** The stack's rows, so a daypart a row overrides to gets its own segment anchor. */
+  rows: ContextRow[];
   pending?: boolean;
   onSubmit: (values: StackFormValues, helpers: SubmitHelpers<StackFormValues>) => void;
   onBlockedActive: (message: string) => void;
@@ -43,6 +51,7 @@ export function StackDetailsForm({
     control,
     handleSubmit,
     getValues,
+    watch,
     setError,
     formState: { errors },
   } = useForm<StackFormValues>({
@@ -59,6 +68,7 @@ export function StackDetailsForm({
           level: stack.level,
           daypart: stack.daypart ?? null,
           stackOrder: stack.stackOrder ?? 0,
+          defaultAnchors: stack.defaultAnchors ?? {},
           isPremium: stack.isPremium,
           isActive: stack.isActive,
         }
@@ -213,6 +223,24 @@ export function StackDetailsForm({
               />
             </div>
           </div>
+        </FormSection>
+        <FormSection
+          title="Timing"
+          description="Where each segment starts: a moment plus an offset, or a fixed clock time. The app computes the start from this, not from the suggested-timing text."
+        >
+          <Controller
+            name="defaultAnchors"
+            control={control}
+            render={({ field }) => (
+              <SegmentAnchors
+                segments={segmentsOf(watch('daypart'), rows, field.value)}
+                value={field.value}
+                moments={moments}
+                errors={errors.defaultAnchors}
+                onChange={field.onChange}
+              />
+            )}
+          />
         </FormSection>
         <FormSection
           title="Publishing"

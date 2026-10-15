@@ -13,6 +13,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <Link href="/stacks">Stacks</Link>
             <Link href="/micro-actions">Actions</Link>
             <Link href="/labels">Labels</Link>
+            <Link href="/moments">Moments</Link>
             <Link href="/users">Users</Link>
             <Link href="/routines">Routines</Link>
           </div>

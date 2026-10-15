@@ -16,6 +16,7 @@ const LABELS: Record<string, string> = {
   suggestedTiming: 'Suggested timing',
   primaryLabel: 'Primary label',
   daypart: 'Daypart',
+  defaultAnchors: 'Timing anchor',
   level: 'Level',
   functionTag: 'Function',
   labels: 'Labels',

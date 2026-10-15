@@ -34,6 +34,37 @@ export interface Bilingual {
   en: string;
 }
 
+/** The seven moments of a day, keyed exactly as the app writes users/{uid}.baseMoments. */
+export type MomentKey =
+  'wake' | 'firstMeal' | 'workStart' | 'secondMeal' | 'workEnd' | 'lastMeal' | 'bed';
+
+/**
+ * A fixed list: edited, never created or deleted. `updatedAt` null means nobody has configured the
+ * moment yet, so its Dutch label, daypart and default time are still null — never guessed.
+ */
+export interface Moment {
+  key: MomentKey;
+  sortOrder: number;
+  label: Bilingual;
+  daypart: Daypart | null;
+  defaultTime: string | null;
+  updatedAt: string | null;
+}
+
+/**
+ * Where one segment of a stack starts: a moment plus an offset in minutes, or a fixed clock time
+ * that no moment moves — exactly one of the two. The app computes the anchor as the user's time for
+ * the moment (Your day, else the moment's default) + `offsetMin`.
+ */
+export interface StackAnchor {
+  moment: MomentKey | null;
+  offsetMin: number;
+  fixedTime: string | null;
+}
+
+/** One anchor per segment, keyed by the segment's daypart, as the app keys a routine's moments. */
+export type DefaultAnchors = Partial<Record<Daypart, StackAnchor>>;
+
 export interface Stack {
   id: string;
   title: Bilingual;
@@ -53,6 +84,8 @@ export interface Stack {
    * conflated. A template-level field only: the app does not let members drag Home or Agenda.
    */
   stackOrder: number;
+  /** Replaces free-text suggested timing as the source of each segment's start. */
+  defaultAnchors: DefaultAnchors;
   isPremium: boolean;
   isActive: boolean;
   actionCount: number;
@@ -71,9 +104,9 @@ export interface MicroAction {
   durationMin: number;
   level: Level;
   /**
-   * The function this action usually serves. A context row inherits it unless it overrides, so the
-   * field only needs attention where a stack uses the action differently. Null until an editor
-   * sets one — deliberately not defaulted, so "not set" stays visible rather than guessed.
+   * The function this action usually serves, as a Library classification. Context rows do not
+   * inherit it: inside a stack a row takes the stack's function (Build 8 open items, D6). Null
+   * until an editor sets one — deliberately not defaulted, so "not set" stays visible.
    */
   defaultFunctionTag: FunctionTag | null;
   usedInStacksCount: number;
@@ -85,10 +118,9 @@ export interface ContextRow {
   microActionId: string;
   microActionTitle: Bilingual;
   /**
-   * The function this action serves *inside this stack*, which is not always the one it serves
-   * elsewhere — a post-meal walk regulates in a glucose stack and activates in a movement break.
-   * Null means inherit the micro-action's `defaultFunctionTag`. Because each row carries its own,
-   * one stack normally lights more than one ring.
+   * Null means inherit the parent stack's `functionTag`, which is the rule (Build 8 open items,
+   * D6). A stored value is a pre-existing override; it is kept and shown as one, never cleared by
+   * the panel.
    */
   functionTag: FunctionTag | null;
   /** The effective, visible order of this row inside its stack. Drag-and-drop owns it. */

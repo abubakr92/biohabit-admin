@@ -144,13 +144,22 @@ interactive step:
 
 ```powershell
 npm run firebase:login          # once per machine; opens a browser
-npm run firebase:deploy         # rules + indexes + the api function
+npm run firebase:deploy         # the api function only
+npm run firebase:deploy:rules   # security rules, only if the mirror still matches production
 npm run verify:deployment       # public smoke test; no credentials needed
 ```
 
-`firebase:deploy` pushes three things together, and they belong together — the API, the security
-rules, and the two composite indexes the paginated `/users` queries need. Deploying the function
-without the indexes makes the Users filters fail.
+`firebase:deploy` pushes the `api` function only. The security rules belong to the mobile lead and
+`firestore.rules` here is a mirror of what production enforces. `firebase:deploy:rules` exists only
+for additive blocks this panel owns (the `moments` collection, Build 8 C1): it runs `check-rules`
+first and stops if production has drifted from the mirror, so a deploy from here can never revert a
+rule the lead changed. Refresh the mirror with `check-rules -- --pull` and re-run the rules tests
+before trying again.
+
+After the API carrying `defaultAnchors` is live, `npm --prefix functions run set:confirmed-anchors`
+reports the three anchors the open items confirm (Evening Wind-Down, Skin & Collagen, Glucose
+Glide); add `-- --apply` to write them. It only adds the new field and never overwrites an anchor an
+editor has set.
 
 **Before the first deploy of the new API, check `functions/.env`.** It sets `ADMIN_ORIGINS`, the
 list of browser origins allowed to call the API. It currently contains only `http://localhost:3000`.

@@ -6,9 +6,22 @@ export type AccessLevel = 'free' | 'premium' | 'test' | 'admin';
 // Difficulty, not mode. Must stay identical to the Level type in src/types/models.ts.
 export type Level = 'beginner' | 'intermediate' | 'advanced' | 'expert';
 export interface Bilingual { nl: string; en: string }
+// The seven moments of a day. Keys are the ones the app already writes to users/{uid}.baseMoments,
+// so a user's own time and the panel's default line up by key.
+export type MomentKey = 'wake' | 'firstMeal' | 'workStart' | 'secondMeal' | 'workEnd' | 'lastMeal' | 'bed';
+export interface MomentInput { label: Bilingual; daypart: Daypart; defaultTime: string }
+// `updatedAt` null means the moment has not been configured yet: no document exists for it.
+export interface Moment { key: MomentKey; sortOrder: number; label: Bilingual; daypart: Daypart | null; defaultTime: string | null; updatedAt: string | null }
+// Where one segment of a stack starts. Either a moment plus an offset in minutes, or a fixed clock
+// time that no moment moves — never both. Anchor = the user's time for the moment (else its
+// default) + offsetMin.
+export interface StackAnchor { moment: MomentKey | null; offsetMin: number; fixedTime: string | null }
+// One anchor per segment, keyed by the segment's daypart — the same keying the app uses for a
+// routine's `moments`. A stack whose rows all share its daypart has one segment.
+export type DefaultAnchors = Partial<Record<Daypart, StackAnchor>>;
 // `stackOrder` orders two stacks that share a daypart. It is not `stackSortOrder`, which orders
 // micro-actions inside one stack.
-export interface StackInput { title: Bilingual; description: Bilingual; coherence: Bilingual; suggestedTiming: Bilingual; functionTag: FunctionTag; primaryLabel: string; supportingLabels: string[]; level: Level; daypart: Daypart | null; stackOrder: number; isPremium: boolean; isActive: boolean }
+export interface StackInput { title: Bilingual; description: Bilingual; coherence: Bilingual; suggestedTiming: Bilingual; functionTag: FunctionTag; primaryLabel: string; supportingLabels: string[]; level: Level; daypart: Daypart | null; stackOrder: number; defaultAnchors: DefaultAnchors; isPremium: boolean; isActive: boolean }
 export interface Stack extends StackInput { id: string; actionCount: number; modeDurations: Record<Mode, number>; createdAt: string; updatedAt: string }
 export interface MicroActionInput { title: Bilingual; effect: Bilingual; howTo: Bilingual; warning: Bilingual; labels: string[]; durationMin: number; level: Level; defaultFunctionTag: FunctionTag | null }
 export interface MicroAction extends MicroActionInput { id: string; usedInStacksCount: number }

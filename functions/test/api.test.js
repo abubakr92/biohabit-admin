@@ -419,3 +419,46 @@ test('B1 — notification templates are managed over the API', async () => {
   );
   assert.equal((await call('/notification-templates', { auth: false })).status, 401);
 });
+
+test('C1 — the seven moments are a fixed list, editable but never invented', async () => {
+  const listed = await call('/moments');
+  assert.equal(listed.status, 200);
+  assert.deepEqual(
+    listed.body.map((moment) => moment.key),
+    ['wake', 'firstMeal', 'workStart', 'secondMeal', 'workEnd', 'lastMeal', 'bed'],
+  );
+  assert.deepEqual(
+    listed.body.map((moment) => moment.label.en),
+    ['Wake up', 'First meal', 'Start of work', 'Second meal', 'End of work', 'Last meal', 'Bed'],
+  );
+  const incomplete = await call('/moments/bed', { method: 'PATCH', body: { label: { nl: '', en: 'Bed' } } });
+  assert.equal(incomplete.status, 422);
+  const saved = await call('/moments/bed', {
+    method: 'PATCH',
+    body: { label: { nl: 'Bed', en: 'Bed' }, daypart: 'evening', defaultTime: '22:00' },
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.defaultTime, '22:00');
+  assert.equal(saved.body.sortOrder, 6);
+  assert.equal((await call('/moments/breakfast', { method: 'PATCH', body: saved.body })).status, 404);
+  assert.equal((await call('/moments', { method: 'POST', body: saved.body })).status, 404);
+});
+
+test('C1 — a stack keeps its default anchors per segment, and a removed one is gone', async () => {
+  const created = await call('/stacks', {
+    method: 'POST',
+    body: draft({ defaultAnchors: { evening: { moment: 'bed', offsetMin: -90, fixedTime: null }, morning: { moment: null, offsetMin: 0, fixedTime: '07:00' } } }),
+  });
+  assert.equal(created.status, 201);
+  assert.deepEqual(created.body.defaultAnchors.evening, { moment: 'bed', offsetMin: -90, fixedTime: null });
+  const patched = await call(`/stacks/${created.body.id}`, {
+    method: 'PATCH',
+    body: { defaultAnchors: { evening: { moment: 'bed', offsetMin: -60, fixedTime: null } } },
+  });
+  assert.equal(patched.status, 200);
+  assert.deepEqual(Object.keys(patched.body.defaultAnchors), ['evening'], 'the morning anchor was removed, not merged back');
+  assert.equal(patched.body.defaultAnchors.evening.offsetMin, -60);
+  const untouched = await call(`/stacks/${created.body.id}`, { method: 'PATCH', body: { stackOrder: 3 } });
+  assert.equal(untouched.body.defaultAnchors.evening.offsetMin, -60, 'a patch without anchors keeps them');
+  await call(`/stacks/${created.body.id}`, { method: 'DELETE' });
+});

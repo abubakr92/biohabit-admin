@@ -6,6 +6,7 @@ const {
   contextRowSchema,
   labelSchema,
   userQuerySchema,
+  momentSchema,
 } = require('../lib/schemas');
 
 const bilingual = (value) => ({ nl: value, en: value });
@@ -323,4 +324,46 @@ test('B1 — a notification template needs a trigger key and bilingual copy', ()
         false,
         `${field} ${JSON.stringify(value)} must be refused`,
       );
+});
+
+// C1 — moments and per-segment default anchors (Build 8 open items).
+test('C1 — a stack without anchors still saves, and reads back with none', () => {
+  const result = stackSchema.safeParse(draftStack());
+  assert.equal(result.success, true);
+  assert.deepEqual(result.data.defaultAnchors, {});
+});
+
+test('C1 — a segment anchors on a moment plus an offset', () => {
+  const result = stackSchema.safeParse(
+    draftStack({ defaultAnchors: { evening: { moment: 'bed', offsetMin: -90, fixedTime: null } } }),
+  );
+  assert.equal(result.success, true);
+  assert.deepEqual(result.data.defaultAnchors.evening, { moment: 'bed', offsetMin: -90, fixedTime: null });
+});
+
+test('C1 — a fixed-time anchor is its own anchor, with no moment and no offset', () => {
+  assert.equal(
+    stackSchema.safeParse(draftStack({ defaultAnchors: { morning: { moment: null, offsetMin: 0, fixedTime: '07:00' } } })).success,
+    true,
+  );
+  const both = stackSchema.safeParse(draftStack({ defaultAnchors: { morning: { moment: 'wake', offsetMin: 0, fixedTime: '07:00' } } }));
+  assert.equal(both.success, false);
+  assert.ok(fields(both)['defaultAnchors.morning.fixedTime']);
+  const neither = stackSchema.safeParse(draftStack({ defaultAnchors: { morning: { moment: null, offsetMin: 0, fixedTime: null } } }));
+  assert.ok(fields(neither)['defaultAnchors.morning.moment']);
+  const offsetOnFixed = stackSchema.safeParse(draftStack({ defaultAnchors: { morning: { moment: null, offsetMin: 10, fixedTime: '07:00' } } }));
+  assert.ok(fields(offsetOnFixed)['defaultAnchors.morning.offsetMin']);
+});
+
+test('C1 — anchors only name the seven moments and the three dayparts', () => {
+  assert.equal(stackSchema.safeParse(draftStack({ defaultAnchors: { evening: { moment: 'breakfast', offsetMin: 0 } } })).success, false);
+  assert.equal(stackSchema.safeParse(draftStack({ defaultAnchors: { night: { moment: 'bed', offsetMin: 0 } } })).success, false);
+});
+
+test('C1 — a moment saves only when every value is present', () => {
+  const complete = { label: { nl: 'Bed', en: 'Bed' }, daypart: 'evening', defaultTime: '22:00' };
+  assert.equal(momentSchema.safeParse(complete).success, true);
+  const missing = momentSchema.safeParse({ ...complete, label: { nl: '', en: 'Bed' }, defaultTime: '10pm' });
+  assert.deepEqual(Object.keys(fields(missing)).sort(), ['defaultTime', 'label.nl']);
+  assert.equal(momentSchema.safeParse({ ...complete, daypart: null }).success, false);
 });

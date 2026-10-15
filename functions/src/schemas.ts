@@ -5,7 +5,19 @@ const bilingualOptional = z.object({ nl: z.string(), en: z.string() });
 const timeOrNull = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour HH:mm time.').nullable();
 // Drafts stay saveable with only a title; the full bilingual set and a daypart are required to activate.
 const publishRequired = ['description', 'coherence', 'suggestedTiming'] as const;
-const stackBase = z.object({ title: bilingualRequired, description: bilingualOptional, coherence: bilingualOptional, suggestedTiming: bilingualOptional, functionTag: z.enum(['regulate', 'activate', 'build', 'recover']), primaryLabel: z.string().min(1), supportingLabels: z.array(z.string()), level: z.enum(['beginner', 'intermediate', 'advanced', 'expert']), daypart: z.enum(['morning', 'midday', 'evening']).nullable().default(null), stackOrder: z.number().int().min(0).default(0), isPremium: z.boolean(), isActive: z.boolean() });
+export const momentKeys = ['wake', 'firstMeal', 'workStart', 'secondMeal', 'workEnd', 'lastMeal', 'bed'] as const;
+const daypartEnum = z.enum(['morning', 'midday', 'evening']);
+// A segment starts at a moment plus an offset, or at a fixed clock time — exactly one of the two.
+const anchorSchema = z.object({ moment: z.enum(momentKeys).nullable().default(null), offsetMin: z.number().int().min(-720, 'Keep the offset within 12 hours.').max(720, 'Keep the offset within 12 hours.').default(0), fixedTime: timeOrNull.default(null) }).superRefine((value, ctx) => {
+  if (!value.moment && !value.fixedTime) ctx.addIssue({ code: 'custom', path: ['moment'], message: 'Choose a moment or a fixed time.' });
+  if (value.moment && value.fixedTime) ctx.addIssue({ code: 'custom', path: ['fixedTime'], message: 'A fixed time cannot also follow a moment.' });
+  if (value.fixedTime && value.offsetMin !== 0) ctx.addIssue({ code: 'custom', path: ['offsetMin'], message: 'A fixed time has no offset.' });
+});
+export const defaultAnchorsSchema = z.object({ morning: anchorSchema.optional(), midday: anchorSchema.optional(), evening: anchorSchema.optional() }).strict();
+// Every value is required: a moment is only written once it is complete, so the app never reads a
+// half-configured one.
+export const momentSchema = z.object({ label: bilingualRequired, daypart: daypartEnum, defaultTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour HH:mm time.') });
+const stackBase = z.object({ title: bilingualRequired, description: bilingualOptional, coherence: bilingualOptional, suggestedTiming: bilingualOptional, functionTag: z.enum(['regulate', 'activate', 'build', 'recover']), primaryLabel: z.string().min(1), supportingLabels: z.array(z.string()), level: z.enum(['beginner', 'intermediate', 'advanced', 'expert']), daypart: z.enum(['morning', 'midday', 'evening']).nullable().default(null), stackOrder: z.number().int().min(0).default(0), defaultAnchors: defaultAnchorsSchema.default({}), isPremium: z.boolean(), isActive: z.boolean() });
 export const stackSchema = stackBase.superRefine((value, ctx) => {
   if (!value.isActive) return;
   for (const field of publishRequired) for (const locale of ['nl', 'en'] as const) if (!value[field][locale].trim()) ctx.addIssue({ code: 'custom', path: [field, locale], message: 'Required before activating.' });

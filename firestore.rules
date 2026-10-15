@@ -171,6 +171,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // The seven moments of a day (wake, firstMeal, … bed): label, daypart
+    // and default clock time, keyed like users/{uid}.baseMoments. Content
+    // like labels: an admin writes it, the app reads it.
+    match /moments/{momentKey} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     match /auditLogs/{entryId} {
       allow read, write: if isAdmin();
     }

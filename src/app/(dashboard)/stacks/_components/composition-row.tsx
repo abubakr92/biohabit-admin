@@ -2,12 +2,15 @@
 import { CSS } from '@dnd-kit/utilities';
 import { useSortable } from '@dnd-kit/sortable';
 import { GripVertical, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import type { ContextRow, Daypart, MicroAction } from '@/types/models';
+import type { ContextRow, Daypart, FunctionTag, MicroAction } from '@/types/models';
 import { labelFor } from '@/lib/constants/enums';
 export function CompositionRow({
   row,
   position,
   stackDaypart,
+  stackFunction,
+  startsAt,
+  segmentAnchor,
   action,
   onEdit,
   onDelete,
@@ -16,13 +19,18 @@ export function CompositionRow({
   /** Effective order, 1-based: the row's place in stackSortOrder, which drag-and-drop owns. */
   position: number;
   stackDaypart: Daypart | null;
+  stackFunction: FunctionTag;
+  /** Start in the current preview, from the segment anchor; null when no anchor resolves. */
+  startsAt: string | null;
+  /** The segment's anchor, e.g. "Bed − 90 min"; null when the segment has none. */
+  segmentAnchor: string | null;
   action?: MicroAction;
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  // The row's own function when set, otherwise the one inherited from the library action.
-  const effectiveFunction = row.functionTag ?? action?.defaultFunctionTag ?? null;
-  // Same rule for daypart, except the fallback is the stack rather than the library action.
+  // Function and daypart both inherit from the parent stack; a stored value is an override.
+  const effectiveFunction = row.functionTag ?? stackFunction;
+  const overridesFunction = row.functionTag !== null && row.functionTag !== stackFunction;
   const effectiveDaypart = row.daypart ?? stackDaypart;
   const sortable = useSortable({ id: row.id });
   const style = {
@@ -31,7 +39,7 @@ export function CompositionRow({
   };
   const timing =
     row.timingType === 'none'
-      ? 'Any time'
+      ? (startsAt ?? '—')
       : row.timingType === 'relative'
         ? 'Relative to earlier action'
         : row.timingType === 'window'
@@ -61,7 +69,8 @@ export function CompositionRow({
         <span className="block font-semibold text-slate-900">{row.microActionTitle.en}</span>
         <span className="mt-1 block text-xs text-slate-400">
           {row.microActionTitle.nl}
-          {effectiveFunction ? ` · ${labelFor(effectiveFunction)}` : ''}
+          {` · ${labelFor(effectiveFunction)}`}
+          {overridesFunction ? ' (overrides stack)' : ''}
           {row.isOptional ? ' · Optional' : ''}
         </span>
       </button>
@@ -77,7 +86,16 @@ export function CompositionRow({
           {row.daypart ? 'Overrides stack' : 'Inherits stack'}
         </span>
       </span>
-      <span className="hidden text-sm text-slate-500 sm:block">{timing}</span>
+      <span className="hidden text-sm tabular-nums text-slate-500 sm:block">
+        {timing}
+        <span className="mt-0.5 block text-xs text-slate-400">
+          {row.timingType === 'none'
+            ? segmentAnchor
+              ? `Follows ${segmentAnchor}`
+              : 'No anchor set'
+            : 'Own time'}
+        </span>
+      </span>
       <span
         className={`badge hidden justify-self-start sm:inline-flex ${row.includedInMode === 'essential' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : row.includedInMode === 'balanced' ? 'border-blue-200 bg-blue-50 text-blue-700' : ''}`}
       >

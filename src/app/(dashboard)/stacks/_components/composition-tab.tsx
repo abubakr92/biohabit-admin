@@ -27,6 +27,8 @@ import {
   useUpdateContextRow,
 } from '@/lib/hooks/use-context-rows';
 import { useMicroActions } from '@/lib/hooks/use-micro-actions';
+import { useMoments } from '@/lib/hooks/use-moments';
+import { describeAnchor, startTimes } from '@/lib/utils/anchors';
 import { appearsInMode, durationForMode } from '@/lib/utils/modes';
 import { LoadingState } from '@/components/data/loading-state';
 import { ErrorState } from '@/components/data/error-state';
@@ -41,6 +43,7 @@ import { ContextRowDrawer } from './context-row-drawer';
 export function CompositionTab({ stack }: { stack: Stack }) {
   const rowsQuery = useContextRows(stack.id);
   const actionsQuery = useMicroActions();
+  const momentsQuery = useMoments();
   const create = useCreateContextRow(stack.id);
   const update = useUpdateContextRow(stack.id);
   const remove = useDeleteContextRow(stack.id);
@@ -61,6 +64,14 @@ export function CompositionTab({ stack }: { stack: Stack }) {
     [rows, mode],
   );
   const duration = durationForMode(rows, actions, mode);
+  const anchors = stack.defaultAnchors ?? {};
+  const moments = momentsQuery.data ?? [];
+  // Previewed with each moment's default time, in the order and depth shown.
+  const starts = startTimes(visible, actions, stack.daypart, anchors, moments);
+  const anchorOf = (row: (typeof rows)[number]) => {
+    const segment = row.daypart ?? stack.daypart;
+    return segment && anchors[segment] ? describeAnchor(anchors[segment], moments) : null;
+  };
   const selected = rows.find((row) => row.id === selectedId) ?? null;
   const addAction = (action: MicroAction) => {
     const input = {
@@ -178,6 +189,9 @@ export function CompositionTab({ stack }: { stack: Stack }) {
                     row={row}
                     position={rows.findIndex((item) => item.id === row.id) + 1}
                     stackDaypart={stack.daypart}
+                    stackFunction={stack.functionTag}
+                    startsAt={starts.get(row.id) ?? null}
+                    segmentAnchor={anchorOf(row)}
                     action={actions.find((action) => action.id === row.microActionId)}
                     onEdit={() => setSelectedId(row.id)}
                     onDelete={() => setDeleteId(row.id)}
@@ -205,10 +219,7 @@ export function CompositionTab({ stack }: { stack: Stack }) {
       <ContextRowDrawer
         key={selected?.id ?? 'closed'}
         stackDaypart={stack.daypart}
-        inheritedFunction={
-          actions.find((action) => action.id === selected?.microActionId)?.defaultFunctionTag ??
-          null
-        }
+        stackFunction={stack.functionTag}
         open={Boolean(selected)}
         row={selected}
         rows={rows}

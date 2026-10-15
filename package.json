@@ -14,7 +14,8 @@
     "firebase:functions:build": "npm --prefix functions run build",
     "firebase:deploy": "npm --prefix functions run build && firebase deploy --only functions:api --project biohabit",
     "firebase:login": "firebase login",
-    "verify:deployment": "node scripts/verify-deployment.mjs"
+    "verify:deployment": "node scripts/verify-deployment.mjs",
+    "firebase:deploy:rules": "npm --prefix functions run check-rules -- --guard && firebase deploy --only firestore:rules --project biohabit"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -33,6 +33,7 @@ export const seedStacks: Stack[] = items.map(([nl, en, functionTag, primaryLabel
   daypart: index % 3 === 2 ? 'evening' : index % 3 === 1 ? 'midday' : 'morning',
   // Orders the stacks that share a daypart; the daypart cycles every three entries.
   stackOrder: Math.floor(index / 3),
+  defaultAnchors: {},
   isPremium: index > 4,
   isActive: index !== 6,
   actionCount: 4,

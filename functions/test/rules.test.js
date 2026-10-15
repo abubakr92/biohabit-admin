@@ -3,8 +3,9 @@
 //   npm --prefix functions run test:rules   (terminal 2)
 //
 // ../../firestore.rules is a verbatim mirror of the ruleset deployed on the project, which the
-// mobile lead owns. It is never deployed from this repo — `npm run firebase:deploy` carries
-// `--only functions:api`. Refresh the mirror with `npm --prefix functions run check-rules -- --pull`
+// mobile lead owns. `npm run firebase:deploy` carries `--only functions:api`. The one exception is
+// an additive block (moments, Build 8 C1), shipped with `npm run firebase:deploy:rules`, which
+// refuses to deploy unless the mirror still matches production. Refresh the mirror with `npm --prefix functions run check-rules -- --pull`
 // after the lead changes anything, then re-run this suite: these assertions describe what
 // production actually enforces, not what this panel would have chosen.
 const test = require('node:test');
@@ -52,6 +53,7 @@ test.before(async () => {
     await setDoc(doc(db, 'contextRows/draft-1'), { stackId: 'draft-stack', stackSortOrder: 0 });
     await setDoc(doc(db, 'microActions/action-1'), { durationMin: 3 });
     await setDoc(doc(db, 'labels/label-1'), { key: 'focus' });
+    await setDoc(doc(db, 'moments/bed'), { label: { nl: 'Bed', en: 'Bed' }, daypart: 'evening', defaultTime: '22:00', sortOrder: 6 });
     await setDoc(doc(db, 'notificationTemplates/series_anchor'), {
       title: { nl: 'Tijd', en: 'Time' },
       body: { nl: 'Klaar', en: 'Ready' },
@@ -181,4 +183,14 @@ test('audit logs are admin-only and closed to members', async () => {
 test('email OTPs are unreachable from any client, admin included', async () => {
   await assertFails(getDoc(doc(admin(), 'emailOtps/member-1')));
   await assertFails(getDoc(doc(member(), 'emailOtps/member-1')));
+});
+
+// C1: the app reads the moment list and its default times; only an admin changes them.
+test('moments are readable by any member and writable only by an admin', async () => {
+  await assertSucceeds(getDoc(doc(member(), 'moments/bed')));
+  await assertFails(getDoc(doc(anonymous(), 'moments/bed')));
+  await assertFails(setDoc(doc(member(), 'moments/bed'), { defaultTime: '23:00' }));
+  await assertSucceeds(
+    setDoc(doc(admin(), 'moments/bed'), { label: { nl: 'Bed', en: 'Bed' }, daypart: 'evening', defaultTime: '22:00', sortOrder: 6 }),
+  );
 });

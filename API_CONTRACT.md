@@ -38,7 +38,7 @@ Browser calls are restricted by CORS to the origins listed in `ADMIN_ORIGINS` (s
 | DELETE | `/stacks/:id`           | none                                                                          | `204`; also deletes the stack's context rows  |
 | POST   | `/stacks/:id/duplicate` | none                                                                          | New inactive `Stack` with copied context rows |
 
-`StackInput` contains `title`, `description`, `coherence`, `suggestedTiming`, `functionTag`, `primaryLabel`, `supportingLabels`, `level`, `daypart`, `isPremium`, and `isActive`. The server supplies `id`, timestamps, `actionCount`, and derived `modeDurations`.
+`StackInput` contains `title`, `description`, `coherence`, `suggestedTiming`, `functionTag`, `primaryLabel`, `supportingLabels`, `level`, `daypart`, `stackOrder`, `defaultAnchors`, `isPremium`, and `isActive`. The server supplies `id`, timestamps, `actionCount`, and derived `modeDurations`.
 
 **Classification.** Stacks are classified on three axes: `primaryLabel` (plus `supportingLabels`), `functionTag`, and `daypart` (`morning | midday | evening`). `daypart` is `null` on a draft and required to publish. `level` is a separate quality — the mode tier the stack is written for.
 
@@ -47,6 +47,19 @@ Browser calls are restricted by CORS to the origins listed in `ADMIN_ORIGINS` (s
 **Mode caps are guidance, not validation.** `MODE_CAPS` in `src/lib/constants/rules.ts` drives the composer's preview only; the API has never rejected a stack for exceeding one. Essential targets 10 minutes; Balanced and Full are uncapped, because an evening wind-down legitimately runs past an hour. Cumulative duration is a plain sum of elapsed minutes — a 25-minute focus block consumes 25 and a 2-minute breath consumes 2, with no weighting for effort.
 
 **Draft rule.** A stack needs only `title` (NL and EN) and a `primaryLabel` to be saved. `description`, `coherence`, `suggestedTiming` (both languages) and `daypart` become required when `isActive` is `true`; activating an incomplete stack returns `422` listing each missing field. The client schema in `src/lib/validation/stack.ts` mirrors this exactly.
+
+**Default anchors.** `defaultAnchors` says where each segment of a stack starts, replacing the free-text `suggestedTiming` as the source of that time (Build 8 open items, C1). It is keyed by the segment's daypart — the stack's own daypart, plus any daypart a row overrides to — the same keying the app uses for a routine's `moments`:
+
+```ts
+type DefaultAnchors = Partial<Record<Daypart, StackAnchor>>;
+interface StackAnchor {
+  moment: MomentKey | null;
+  offsetMin: number;
+  fixedTime: string | null;
+}
+```
+
+Exactly one of `moment` and `fixedTime` is set. A moment anchor starts at **the member's own time for that moment (Your day), else the moment's `defaultTime`, plus `offsetMin`** (−720…720; negative is before the moment). A fixed-time anchor is a clock time no moment moves, and has `offsetMin` 0. The first action of a segment starts at its anchor and each action without its own time starts when the one above it ends — there is no clock-time fallback. The field is optional: older stacks read back as `{}`, and a PATCH replaces the map whole, so removing a segment's anchor really removes it.
 
 Duplicating a stack rewrites `relativeToContextId` on the copied rows to point at the copies, so a duplicate never references its source.
 
@@ -60,11 +73,22 @@ Duplicating a stack rewrites `relativeToContextId` on the copied rows to point a
 | DELETE | `/context-rows/:id`             | none                                 | `204`; `409` when another row depends on it   |
 | POST   | `/context-rows/reorder`         | `{ stackId: string; ids: string[] }` | `204`                                         |
 
-**`functionTag` on the row.** A micro-action's function is a property of the row, not of the library entry: a post-meal walk regulates inside a glucose stack and activates inside a movement break. The row's `functionTag` is nullable and inherits the action's `defaultFunctionTag` when unset, so entry stays light and only the exceptions need touching. Because each row carries its own, one stack normally lights more than one ring.
+**`functionTag` on the row.** Nullable; `null` means the row takes its **parent stack's** `functionTag` (Build 8 open items, D6). A stored value is an override that predates that rule; the API keeps it as written and the panel shows it as an override. The micro-action's `defaultFunctionTag` is a Library classification and is not inherited by rows.
 
 `ContextRowInput` is the `ContextRow` interface without `id` and `stackId`. The API validates conditional timing fields (`exact`, `window` and `anchor` need `startTime`; `window` needs an `endTime` after it; `relative` needs a target and bilingual dependency text) and that `relativeToContextId` names an earlier row in the same stack.
 
 **Reorder rule.** `ids` must contain every row of the stack exactly once, and the resulting order must keep each `relative` row after the row it depends on. An order that would invert a dependency returns `422` and names the offending rows, so a drag cannot leave a row un-editable.
+
+## Moments
+
+| Method | Path            | Request       | Response                        |
+| ------ | --------------- | ------------- | ------------------------------- |
+| GET    | `/moments`      | none          | `Moment[]`, all seven, in order |
+| PATCH  | `/moments/:key` | `MomentInput` | `Moment`                        |
+
+The seven moments of a day, stored at `moments/{key}` and readable by any signed-in member. A fixed list: there is no create or delete, and `POST` returns `404`. Keys are the ones the app already writes to `users/{uid}.baseMoments` — `wake`, `firstMeal`, `workStart`, `secondMeal`, `workEnd`, `lastMeal`, `bed` — so a member's own time and the default line up by key.
+
+`MomentInput` is `{ label: Bilingual; daypart: Daypart; defaultTime: 'HH:mm' }`, every value required, so a document only exists once the moment is complete. `Moment` adds `key`, `sortOrder` (0–6) and `updatedAt`. A moment nobody has configured has no document and reads back with its English name, an empty Dutch label, and `daypart`, `defaultTime` and `updatedAt` all `null` — never a guessed value.
 
 ## Micro-actions
 

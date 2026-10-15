@@ -1,7 +1,17 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, Layers3, ListChecks, Tags, Users, LogOut, Leaf, CalendarRange } from 'lucide-react';
+import {
+  Bell,
+  Clock3,
+  Layers3,
+  ListChecks,
+  Tags,
+  Users,
+  LogOut,
+  Leaf,
+  CalendarRange,
+} from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useLogout, useSession } from '@/lib/hooks/use-auth';
 const groups = [
@@ -11,6 +21,7 @@ const groups = [
       { href: '/stacks', label: 'Stacks', icon: Layers3 },
       { href: '/micro-actions', label: 'Micro-actions', icon: ListChecks },
       { href: '/labels', label: 'Labels', icon: Tags },
+      { href: '/moments', label: 'Moments', icon: Clock3 },
       { href: '/notifications', label: 'Notifications', icon: Bell },
     ],
   },

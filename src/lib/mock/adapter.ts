@@ -1,6 +1,13 @@
 import { ApiError } from '@/lib/api/client';
 import { toDate } from '@/lib/utils/format';
-import type { ContextRow, Label, MicroAction, NotificationTemplate, Stack } from '@/types/models';
+import type {
+  ContextRow,
+  Label,
+  MicroAction,
+  Moment,
+  NotificationTemplate,
+  Stack,
+} from '@/types/models';
 import { seedStacks } from './data/stacks';
 import { seedMicroActions } from './data/micro-actions';
 import { seedContextRows } from './data/context-rows';
@@ -20,6 +27,25 @@ let microActions = structuredClone(seedMicroActions);
 let contextRows = structuredClone(seedContextRows);
 let labels = structuredClone(seedLabels);
 let notificationTemplates = structuredClone(seedNotificationTemplates);
+// Same as the API: only the order and English names are given; nothing else is invented.
+const moments: Moment[] = (
+  [
+    ['wake', 'Wake up'],
+    ['firstMeal', 'First meal'],
+    ['workStart', 'Start of work'],
+    ['secondMeal', 'Second meal'],
+    ['workEnd', 'End of work'],
+    ['lastMeal', 'Last meal'],
+    ['bed', 'Bed'],
+  ] as const
+).map(([key, en], sortOrder) => ({
+  key,
+  sortOrder,
+  label: { nl: '', en },
+  daypart: null,
+  defaultTime: null,
+  updatedAt: null,
+}));
 const users = structuredClone(seedUsers);
 const routines = structuredClone(seedRoutines);
 
@@ -187,6 +213,19 @@ export async function mockRequest<T>(fullPath: string, init: RequestInit = {}): 
     }
     microActions = microActions.filter((value) => value.id !== actionDetail[1]);
     return undefined as T;
+  }
+
+  if (path === '/moments' && method === 'GET') return structuredClone(moments) as T;
+  const momentDetail = path.match(/^\/moments\/([^/]+)$/);
+  if (momentDetail && method === 'PATCH') {
+    const index = moments.findIndex((value) => value.key === momentDetail[1]);
+    if (index < 0) throw new ApiError(404, 'Moment not found.');
+    moments[index] = {
+      ...moments[index],
+      ...body<Pick<Moment, 'label' | 'daypart' | 'defaultTime'>>(init),
+      updatedAt: new Date().toISOString(),
+    };
+    return structuredClone(moments[index]) as T;
   }
 
   if (path === '/labels' && method === 'GET') return structuredClone(labels) as T;

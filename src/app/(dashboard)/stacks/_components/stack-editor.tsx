@@ -13,6 +13,8 @@ import { ConfirmDialog } from '@/components/data/confirm-dialog';
 import { StackDetailsForm } from './stack-details-form';
 import { CompositionTab } from './composition-tab';
 import { useLabels } from '@/lib/hooks/use-labels';
+import { useMoments } from '@/lib/hooks/use-moments';
+import { useContextRows } from '@/lib/hooks/use-context-rows';
 import { useCreateStack, useDeleteStack, useUpdateStack } from '@/lib/hooks/use-stacks';
 import { useToast } from '@/app/providers';
 import { useRouter } from 'next/navigation';
@@ -20,6 +22,9 @@ export function StackEditor({ stack }: { stack?: Stack }) {
   const router = useRouter();
   const toast = useToast();
   const labels = useLabels();
+  const moments = useMoments();
+  // Disabled until the stack exists: a new stack has no rows, so its only segment is its daypart.
+  const rows = useContextRows(stack?.id ?? '');
   const create = useCreateStack();
   const update = useUpdateStack(stack?.id ?? '');
   const remove = useDeleteStack();
@@ -97,14 +102,22 @@ export function StackEditor({ stack }: { stack?: Stack }) {
         {!stack && <span className="self-center text-xs text-slate-400">Save first to unlock</span>}
       </div>
       {tab === 'details' ? (
-        labels.isLoading ? (
+        labels.isLoading || moments.isLoading || (stack && rows.isLoading) ? (
           <LoadingState rows={6} />
-        ) : labels.isError ? (
-          <ErrorState message={labels.error.message} retry={() => labels.refetch()} />
+        ) : labels.isError || moments.isError ? (
+          <ErrorState
+            message={labels.error?.message ?? moments.error?.message}
+            retry={() => {
+              labels.refetch();
+              moments.refetch();
+            }}
+          />
         ) : (
           <StackDetailsForm
             stack={stack}
             labels={labels.data ?? []}
+            moments={moments.data ?? []}
+            rows={rows.data ?? []}
             pending={create.isPending || update.isPending}
             onSubmit={submit}
             onBlockedActive={(message) => toast(message, 'error')}

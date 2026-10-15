@@ -1,10 +1,11 @@
 /**
  * Compares the repo's `firestore.rules` with the ruleset actually live on the project.
  *
- * The rules are owned and deployed by the mobile lead, not by this repo. The file here is a
- * verbatim mirror kept only so the security-rules tests run against what production really
- * enforces — it is deliberately never deployed from here, which is why `npm run firebase:deploy`
- * carries `--only functions:api` and nothing else.
+ * The rules are owned and deployed by the mobile lead. The file here is a verbatim mirror kept so
+ * the security-rules tests run against what production really enforces; `npm run firebase:deploy`
+ * carries `--only functions:api` and nothing else. Additive blocks owned by this panel (moments)
+ * go out with `npm run firebase:deploy:rules`, which runs this check first and stops on any drift,
+ * so a deploy from here can never revert a rule the lead changed.
  *
  * Run this after the lead changes the rules, then re-run the rules tests:
  *   npm --prefix functions run check-rules            # report drift
@@ -41,6 +42,21 @@ async function main() {
   if (normalise(live) === normalise(local)) {
     console.log('\nIn sync. The mirror matches what the project enforces.');
     return;
+  }
+
+  // Deploy guard: the only difference allowed is this panel's own additive block. Production must
+  // equal the mirror with that block taken out — byte for byte — so any rule the lead added,
+  // changed or removed stops the deploy instead of being overwritten.
+  if (process.argv.includes('--guard')) {
+    const withoutOwnBlocks = normalise(local).replace(
+      /\n[ \t]*\/\/ The seven moments of a day[^\n]*\n(?:[ \t]*\/\/[^\n]*\n)*[ \t]*match \/moments\/\{momentKey\} \{\n[^}]*\}\n/,
+      '\n',
+    );
+    if (normalise(withoutOwnBlocks).replace(/\n{3,}/g, '\n\n') === normalise(live).replace(/\n{3,}/g, '\n\n')) {
+      console.log('\nSafe to deploy: production equals the mirror except for the moments block this panel adds.');
+      return;
+    }
+    console.log('\nNOT safe to deploy: production differs from the mirror beyond the moments block.');
   }
 
   console.log(`\nDRIFT: the mirror is ${normalise(local).length} bytes, production is ${normalise(live).length}.`);

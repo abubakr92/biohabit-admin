@@ -14,6 +14,31 @@ export const FIELD_LABELS: Record<(typeof PUBLISH_REQUIRED)[number], string> = {
   suggestedTiming: 'Suggested timing',
 };
 
+// One segment's start: a moment plus an offset, or a fixed clock time — exactly one. Mirrors the API.
+const anchorSchema = z
+  .object({
+    moment: z
+      .enum(['wake', 'firstMeal', 'workStart', 'secondMeal', 'workEnd', 'lastMeal', 'bed'])
+      .nullable(),
+    offsetMin: z
+      .number({ message: 'Enter minutes, or 0 for at the moment.' })
+      .int('Use whole minutes.')
+      .min(-720, 'Keep the offset within 12 hours.')
+      .max(720, 'Keep the offset within 12 hours.'),
+    fixedTime: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour HH:mm time.')
+      .nullable(),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.moment && !value.fixedTime)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['moment'],
+        message: 'Choose a moment or a fixed time.',
+      });
+  });
+
 export const stackSchema = z
   .object({
     title: bilingualRequired,
@@ -27,6 +52,11 @@ export const stackSchema = z
     daypart: z.enum(['morning', 'midday', 'evening']).nullable(),
     // Orders two stacks that share a daypart. Not a context row's stackSortOrder.
     stackOrder: z.number().int().min(0, 'Use 0 or a positive whole number.'),
+    defaultAnchors: z.object({
+      morning: anchorSchema.optional(),
+      midday: anchorSchema.optional(),
+      evening: anchorSchema.optional(),
+    }),
     isPremium: z.boolean(),
     isActive: z.boolean(),
   })

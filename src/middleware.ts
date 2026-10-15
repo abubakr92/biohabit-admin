@@ -28,6 +28,7 @@ export const config = {
     '/stacks/:path*',
     '/micro-actions/:path*',
     '/labels/:path*',
+    '/moments/:path*',
     '/users/:path*',
     '/routines/:path*',
   ],

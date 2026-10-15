@@ -144,7 +144,7 @@ export function MicroActionForm({
                 ))}
               </select>
               <span className="mt-1 block text-xs font-normal text-slate-500">
-                Inherited by every context row unless that row overrides it.
+                Library classification. Inside a stack, the action takes the stack&rsquo;s function.
               </span>
             </label>
             <div className="md:col-span-2">

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import type { UserRoutineAction } from '@/types/models';
 import { labelFor } from '@/lib/constants/enums';
+import { modeOfDepth } from '@/lib/utils/modes';
 import { EmptyState } from '@/components/data/empty-state';
 
 /**
@@ -54,7 +55,7 @@ export function RoutineActionList({ actions }: { actions: UserRoutineAction[] })
             {action.durationLabel ?? (action.durationMin ? action.durationMin + ' min' : '—')}
           </span>
           <span className="hidden text-xs text-slate-500 sm:block">
-            {action.depth ? labelFor(action.depth) : '—'}
+            {action.depth ? `From ${labelFor(modeOfDepth(action.depth) ?? action.depth)}` : '—'}
           </span>
           <span
             className={`badge justify-self-start text-[11px] ${
