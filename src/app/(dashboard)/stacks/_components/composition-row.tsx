@@ -91,7 +91,7 @@ export function CompositionRow({
         <span className="mt-0.5 block text-xs text-slate-400">
           {row.timingType === 'none'
             ? segmentAnchor
-              ? `Follows ${segmentAnchor}`
+              ? `Follows anchor · ${segmentAnchor}`
               : 'No anchor set'
             : 'Own time'}
         </span>
