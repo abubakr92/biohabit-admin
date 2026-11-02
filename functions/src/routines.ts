@@ -39,6 +39,8 @@ export interface UserRoutineAction {
   depth: string | null;
   isActive: boolean;
   isUserAdded: boolean;
+  /** The app's flag: this action keeps its own time rather than following the chain. */
+  hasOwnTime: boolean;
   /** The contextRows id this action was seeded from, when it came from a template. */
   sourceStepId: string | null;
 }
@@ -110,6 +112,7 @@ function mapActions(routineId: string, raw: unknown): UserRoutineAction[] {
       depth: (action.depth as string) ?? null,
       isActive: action.enabled !== false,
       isUserAdded: !id.startsWith(SEED_PREFIX),
+      hasOwnTime: action.hasOwnTime === true,
       sourceStepId: stepIdOf(id),
     };
   });
@@ -252,7 +255,10 @@ export async function getRoutineDivergence(id: string): Promise<RoutineDivergenc
     actionsRemoved: baseline.filter((stepId) => !current.includes(stepId)).length,
     // Only the inherited actions' relative order counts; inserting a new one is not a reorder.
     orderChanged: inherited.some((stepId, index) => baselineOrder[index] !== stepId),
-    timesChanged: actions.filter((action) => action.sourceStepId && baselineTime.get(action.sourceStepId) !== action.startTime).length,
+    // Every action carries a clock time worked out from the anchor and most template rows have
+    // none, so comparing the two would report every action as moved. Only an action the member
+    // gave its own time can have shifted.
+    timesChanged: actions.filter((action) => action.sourceStepId && action.hasOwnTime && baselineTime.get(action.sourceStepId) !== action.startTime).length,
   };
 }
 

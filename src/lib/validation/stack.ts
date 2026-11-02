@@ -50,7 +50,7 @@ export const stackSchema = z
     supportingLabels: z.array(z.string()),
     level: z.enum(['beginner', 'intermediate', 'advanced', 'expert']),
     daypart: z.enum(['morning', 'midday', 'evening']).nullable(),
-    // Orders two stacks that share a daypart. Not a context row's stackSortOrder.
+    // Optional override: 0 means automatic. Not a context row's stackSortOrder.
     stackOrder: z.number().int().min(0, 'Use 0 or a positive whole number.'),
     defaultAnchors: z.object({
       morning: anchorSchema.optional(),

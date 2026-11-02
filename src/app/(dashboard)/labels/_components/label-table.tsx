@@ -36,22 +36,25 @@ export function LabelTable({
     defaultValues: { key: '', name: { nl: '', en: '' } },
   });
   const submit = (values: Values) =>
-    create.mutate(values, {
-      onSuccess: () => {
-        reset();
-        setAdding(false);
-        toast('Label created.');
+    create.mutate(
+      { ...values, isActive: true },
+      {
+        onSuccess: () => {
+          reset();
+          setAdding(false);
+          toast('Label created.');
+        },
+        onError: (error) => {
+          if (!applyFieldErrors(error, setError)) toast(error.message, 'error');
+        },
       },
-      onError: (error) => {
-        if (!applyFieldErrors(error, setError)) toast(error.message, 'error');
-      },
-    });
+    );
   return (
     <div className="card overflow-x-auto">
       <table className="w-full min-w-[700px] text-left">
         <thead className="border-b border-slate-200 bg-slate-50/80">
           <tr>
-            {['Key', 'Name NL', 'Name EN', 'Usage', ''].map((item) => (
+            {['Key', 'Name NL', 'Name EN', 'Usage', 'In the app', ''].map((item) => (
               <th
                 key={item}
                 className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"

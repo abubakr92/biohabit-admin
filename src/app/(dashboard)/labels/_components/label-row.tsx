@@ -40,6 +40,19 @@ export function LabelRow({ label, onDelete }: { label: Label; onDelete: () => vo
         },
       },
     );
+  const toggle = () =>
+    update.mutate(
+      { id: label.id, input: { isActive: !label.isActive } },
+      {
+        onSuccess: () =>
+          toast(
+            label.isActive
+              ? `${label.name.en} is hidden in the app.`
+              : `${label.name.en} shows in the app.`,
+          ),
+        onError: (error) => toast(error.message, 'error'),
+      },
+    );
   return (
     <tr className="border-b border-slate-100 last:border-0">
       {editing ? (
@@ -69,6 +82,19 @@ export function LabelRow({ label, onDelete }: { label: Label; onDelete: () => vo
         </>
       )}
       <td className="px-5 py-4 text-sm text-slate-500">{label.usageCount} uses</td>
+      <td className="px-5 py-4">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={label.isActive}
+          aria-label={`Show ${label.name.en} in the app`}
+          disabled={update.isPending}
+          className={`badge ${label.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-500'}`}
+          onClick={toggle}
+        >
+          {label.isActive ? 'Active' : 'Inactive'}
+        </button>
+      </td>
       <td className="px-5 py-3">
         <div className="flex justify-end gap-1">
           {editing ? (

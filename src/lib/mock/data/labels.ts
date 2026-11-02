@@ -14,5 +14,6 @@ export const seedLabels: Label[] = names.map(([key, nl, en], index) => ({
   id: `label-${index + 1}`,
   key,
   name: { nl, en },
+  isActive: true,
   usageCount: [8, 6, 3, 5, 9, 2, 6, 1][index],
 }));

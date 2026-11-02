@@ -4,6 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { GripVertical, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { ContextRow, Daypart, FunctionTag, MicroAction } from '@/types/models';
 import { labelFor } from '@/lib/constants/enums';
+import { functionSourceLabels, resolveFunction } from '@/lib/utils/modes';
 export function CompositionRow({
   row,
   position,
@@ -28,9 +29,8 @@ export function CompositionRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  // Function and daypart both inherit from the parent stack; a stored value is an override.
-  const effectiveFunction = row.functionTag ?? stackFunction;
-  const overridesFunction = row.functionTag !== null && row.functionTag !== stackFunction;
+  const resolved = resolveFunction(row.functionTag, action, stackFunction);
+  // A stored daypart overrides the stack; null inherits it.
   const effectiveDaypart = row.daypart ?? stackDaypart;
   const sortable = useSortable({ id: row.id });
   const style = {
@@ -69,8 +69,7 @@ export function CompositionRow({
         <span className="block font-semibold text-slate-900">{row.microActionTitle.en}</span>
         <span className="mt-1 block text-xs text-slate-400">
           {row.microActionTitle.nl}
-          {` · ${labelFor(effectiveFunction)}`}
-          {overridesFunction ? ' (overrides stack)' : ''}
+          {` · ${labelFor(resolved.value)} (${functionSourceLabels[resolved.source]})`}
           {row.isOptional ? ' · Optional' : ''}
         </span>
       </button>

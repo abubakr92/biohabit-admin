@@ -64,7 +64,7 @@ export default function RoutinePage() {
         <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <Fact label="Owner">
             <Link href={`/users/${item.userId}`} className="text-[#236b5b] hover:underline">
-              {item.userEmail}
+              {item.userEmail || 'Guest'}
             </Link>
           </Fact>
           <Fact label="Source">

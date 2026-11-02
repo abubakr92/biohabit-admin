@@ -93,7 +93,7 @@ export async function updateMicroAction(id: string, input: MicroActionInput) { a
 export async function deleteMicroAction(id: string) { const action = await one<MicroActionInput>(collections.actions, id, 'Micro-action'); const rows = (await db.collection(collections.contexts).where('microActionId', '==', id).get()).docs.map((document) => document.data() as Omit<ContextRow, 'id'>); if (rows.length) { const stacks = await db.getAll(...[...new Set(rows.map((row) => row.stackId))].map((stackId) => db.collection(collections.stacks).doc(stackId))); const names = stacks.filter((document) => document.exists).map((document) => (document.data() as StackInput).title.en); throw new HttpError(409, `“${action.title.en}” is used in: ${names.join(', ')}.`); } await db.collection(collections.actions).doc(id).delete(); }
 
 async function labelUsage(key: string) { const [stacks, actions] = await Promise.all([all<StackInput>(collections.stacks), all<MicroActionInput>(collections.actions)]); return [...stacks.filter((stack) => stack.primaryLabel === key || stack.supportingLabels.includes(key)).map((stack) => `stack: ${stack.title.en}`), ...actions.filter((action) => action.labels.includes(key)).map((action) => `action: ${action.title.en}`)]; }
-export async function listLabels(): Promise<Label[]> { const [labels, stacks, actions] = await Promise.all([all<LabelInput>(collections.labels), all<StackInput>(collections.stacks), all<MicroActionInput>(collections.actions)]); return labels.map((label) => ({ ...label, usageCount: stacks.reduce((count, stack) => count + Number(stack.primaryLabel === label.key) + Number(stack.supportingLabels.includes(label.key)), 0) + actions.reduce((count, action) => count + Number(action.labels.includes(label.key)), 0) })); }
+export async function listLabels(): Promise<Label[]> { const [labels, stacks, actions] = await Promise.all([all<LabelInput>(collections.labels), all<StackInput>(collections.stacks), all<MicroActionInput>(collections.actions)]); return labels.map((label) => ({ ...label, isActive: label.isActive !== false, usageCount: stacks.reduce((count, stack) => count + Number(stack.primaryLabel === label.key) + Number(stack.supportingLabels.includes(label.key)), 0) + actions.reduce((count, action) => count + Number(action.labels.includes(label.key)), 0) })); }
 export async function createLabel(input: LabelInput) { const duplicate = (await all<LabelInput>(collections.labels)).find((label) => label.key === input.key); if (duplicate) throw new HttpError(409, `Label key “${input.key}” already exists.`); const reference = await db.collection(collections.labels).add(input); return { ...input, id: reference.id, usageCount: 0 }; }
 export async function updateLabel(id: string, input: LabelInput) {
   const existing = await one<LabelInput>(collections.labels, id, 'Label');
@@ -105,6 +105,20 @@ export async function updateLabel(id: string, input: LabelInput) {
   return (await listLabels()).find((label) => label.id === id)!;
 }
 export async function deleteLabel(id: string) { const label = await one<LabelInput>(collections.labels, id, 'Label'); const usage = await labelUsage(label.key); if (usage.length) throw new HttpError(409, `“${label.name.en}” is used by ${usage.join(', ')}.`); await db.collection(collections.labels).doc(id).delete(); }
+
+/**
+ * What the app cannot do when an account is deleted. Verification codes are written by Cloud
+ * Functions and the rules shut clients out of them, so a member deleting themselves can't reach
+ * them, and `emailOtps` holds their email address. Everything the member owns is deleted by the app
+ * itself; this deliberately touches nothing else.
+ */
+export async function cleanupDeletedAccount(uid: string) {
+  const resets = await db.collection('passwordResetOtps').where('uid', '==', uid).get();
+  const batch = db.batch();
+  batch.delete(db.collection('emailOtps').doc(uid));
+  resets.docs.forEach((document) => batch.delete(document.ref));
+  await batch.commit();
+}
 
 // --- Notification templates ------------------------------------------------
 // Push copy the app renders. Kept in Firestore so wording and NL/EN changes ship without an app

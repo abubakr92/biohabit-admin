@@ -13,8 +13,13 @@ export function useCreateLabel() {
 export function useUpdateLabel() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: Partial<Pick<Label, 'key' | 'name'>> }) =>
-      updateLabel(id, input),
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: Partial<Pick<Label, 'key' | 'name' | 'isActive'>>;
+    }) => updateLabel(id, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['labels'] }),
   });
 }

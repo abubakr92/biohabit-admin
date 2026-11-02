@@ -44,7 +44,7 @@ Browser calls are restricted by CORS to the origins listed in `ADMIN_ORIGINS` (s
 
 **`level` is difficulty, not mode.** `level` (`beginner | intermediate | advanced | expert`) says how demanding the content is. Which actions a member sees in each mode is a separate question, answered by a context row's `includedInMode` (`essential | balanced | full`) — the two must not be conflated or duplicated. `level` is stored for categorisation; nothing in the app branches on it yet.
 
-**Mode caps are guidance, not validation.** `MODE_CAPS` in `src/lib/constants/rules.ts` drives the composer's preview only; the API has never rejected a stack for exceeding one. Essential targets 10 minutes; Balanced and Full are uncapped, because an evening wind-down legitimately runs past an hour. Cumulative duration is a plain sum of elapsed minutes — a 25-minute focus block consumes 25 and a 2-minute breath consumes 2, with no weighting for effort.
+**Duration.** No mode has a cap or target. Cumulative duration is a plain sum of elapsed minutes — a 25-minute focus block consumes 25 and a 2-minute breath consumes 2, with no weighting for effort. It counts every row in the depth, optional rows included; only an action a member switched off is subtracted, in that member's plan.
 
 **Draft rule.** A stack needs only `title` (NL and EN) and a `primaryLabel` to be saved. `description`, `coherence`, `suggestedTiming` (both languages) and `daypart` become required when `isActive` is `true`; activating an incomplete stack returns `422` listing each missing field. The client schema in `src/lib/validation/stack.ts` mirrors this exactly.
 
@@ -73,7 +73,7 @@ Duplicating a stack rewrites `relativeToContextId` on the copied rows to point a
 | DELETE | `/context-rows/:id`             | none                                 | `204`; `409` when another row depends on it   |
 | POST   | `/context-rows/reorder`         | `{ stackId: string; ids: string[] }` | `204`                                         |
 
-**`functionTag` on the row.** Nullable; `null` means the row takes its **parent stack's** `functionTag` (Build 8 open items, D6). A stored value is an override that predates that rule; the API keeps it as written and the panel shows it as an override. The micro-action's `defaultFunctionTag` is a Library classification and is not inherited by rows.
+**`functionTag` on the row.** Nullable. The function in effect resolves **row → micro-action `defaultFunctionTag` → stack `functionTag`**, in the panel and in the app's Home rings alike, because the rings count what each action does inside its stack. The API stores and returns the row's own value as written; the resolution happens on read.
 
 `ContextRowInput` is the `ContextRow` interface without `id` and `stackId`. The API validates conditional timing fields (`exact`, `window` and `anchor` need `startTime`; `window` needs an `endTime` after it; `relative` needs a target and bilingual dependency text) and that `relativeToContextId` names an earlier row in the same stack.
 
@@ -102,20 +102,22 @@ The seven moments of a day, stored at `moments/{key}` and readable by any signed
 
 `MicroActionInput` contains `title`, `effect`, `howTo`, `warning`, `labels`, `durationMin`, `level`, and `defaultFunctionTag`. The server supplies `id` and `usedInStacksCount`.
 
-**`defaultFunctionTag`** is the function this action usually serves. Every context row inherits it, so the field only needs attention on the rows where a stack uses the action differently. It is nullable and has no default: an unset function stays visibly unset rather than being guessed at.
+**`defaultFunctionTag`** is the function this action usually serves. A row that sets no function of its own uses it. It is nullable and has no default: an unset function stays visibly unset rather than being guessed at, and such a row takes the stack's function.
 
 `warning` here is the action's own general caution, for the Library. A context row's `contextWarning` is the caution specific to using it inside that stack; likewise `effect` versus `contextEffect`. Both pairs are deliberate and neither replaces the other.
 
 ## Labels
 
-| Method | Path          | Request                                     | Response                                   |
-| ------ | ------------- | ------------------------------------------- | ------------------------------------------ |
-| GET    | `/labels`     | none                                        | `Label[]`                                  |
-| POST   | `/labels`     | `{ key: string; name: Bilingual }`          | `Label`                                    |
-| PATCH  | `/labels/:id` | `Partial<{ key: string; name: Bilingual }>` | `Label`                                    |
-| DELETE | `/labels/:id` | none                                        | `204`; `409` with usage detail when in use |
+| Method | Path          | Request                                                        | Response                                   |
+| ------ | ------------- | -------------------------------------------------------------- | ------------------------------------------ |
+| GET    | `/labels`     | none                                                           | `Label[]`                                  |
+| POST   | `/labels`     | `{ key: string; name: Bilingual; isActive?: boolean }`         | `Label`                                    |
+| PATCH  | `/labels/:id` | `Partial<{ key: string; name: Bilingual; isActive: boolean }>` | `Label`                                    |
+| DELETE | `/labels/:id` | none                                                           | `204`; `409` with usage detail when in use |
 
 The server supplies `id` and `usageCount`.
+
+**`isActive`.** `false` hides a label in the app (onboarding Q2, Library filter) and a member who had chosen it stops matching on it. The flag is optional in storage: a label without it is active, here and in the app, so existing documents need no change. Stacks keep referencing an inactive label by key.
 
 **Key rule.** Stacks and micro-actions reference labels by `key`, not by document ID. Changing the `key` of a label that is in use returns `409` listing the referencing records, because a rename would otherwise orphan every reference and silently drop the label's usage count to zero. Display names (`name.nl`, `name.en`) can be edited at any time.
 
@@ -177,6 +179,10 @@ Routines belong to the member who created them. **Every endpoint here is read-on
 `UserRoutineAction.isUserAdded` marks an action the member added that the source template did not contain; it is always `true` for every action of a custom routine.
 
 `DailyCompletion` is `{ date, started, planned, percentage }`. `planned` is `0` on a day the routine was not scheduled — a weekday it does not run, before it started, or after it expired — which is distinct from a day that was planned and missed (`planned > 0, started = 0`). Clients must render those two cases differently.
+
+## Account deletion
+
+The app deletes everything the member owns, then the Auth user. The `cleanupDeletedAccount` function runs when an Auth user is deleted and removes what clients cannot reach: `emailOtps/{uid}` and any `passwordResetOtps` document carrying that `uid`.
 
 ## Status codes
 

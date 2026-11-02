@@ -5,7 +5,7 @@ import { Save, Trash2, X } from 'lucide-react';
 import type { ContextRow, Daypart, FunctionTag } from '@/types/models';
 import type { SubmitHelpers } from '@/types/api';
 import { contextRowSchema, type ContextRowFormValues } from '@/lib/validation/context-row';
-import { derivedModes } from '@/lib/utils/modes';
+import { derivedModes, functionSourceLabels, type FunctionSource } from '@/lib/utils/modes';
 import {
   buildOneTimingTypes,
   dayparts,
@@ -50,7 +50,7 @@ export function ContextRowDrawer({
   row,
   rows,
   stackDaypart,
-  stackFunction,
+  inheritedFunction,
   open,
   pending,
   onClose,
@@ -61,8 +61,8 @@ export function ContextRowDrawer({
   rows: ContextRow[];
   /** The parent stack's daypart, named on the inherit option so the effect is visible. */
   stackDaypart: Daypart | null;
-  /** The parent stack's function, named on the inherit option so the effect is visible. */
-  stackFunction: FunctionTag;
+  /** What this row gets when it sets nothing itself, named so the effect and source are visible. */
+  inheritedFunction: { value: FunctionTag; source: FunctionSource };
   open: boolean;
   pending?: boolean;
   onClose: () => void;
@@ -152,7 +152,10 @@ export function ContextRowDrawer({
                     className="field mt-2"
                     {...register('functionTag', { setValueAs: (value) => value || null })}
                   >
-                    <option value="">Inherit from stack · {labelFor(stackFunction)}</option>
+                    <option value="">
+                      Inherit · {labelFor(inheritedFunction.value)} (
+                      {functionSourceLabels[inheritedFunction.source]})
+                    </option>
                     {functionTags.map((item) => (
                       <option key={item} value={item}>
                         {labelFor(item)}
@@ -161,8 +164,8 @@ export function ContextRowDrawer({
                   </select>
                   <span className="mt-2 block text-xs font-normal text-slate-500">
                     {watch('functionTag')
-                      ? 'Overrides the stack’s function for this action.'
-                      : 'Follows the stack’s function.'}
+                      ? `Source: ${functionSourceLabels.row}. This row sets its own function.`
+                      : `Source: ${functionSourceLabels[inheritedFunction.source]}. Choose a value only to set one on this row.`}
                   </span>
                 </label>
               </div>
@@ -289,6 +292,7 @@ export function ContextRowDrawer({
               />
               <BilingualField
                 label="Context warning"
+                hint="Shown in the app after the action's own warning. Leave empty unless it adds something for this stack."
                 multiline
                 nl={register('contextWarning.nl')}
                 en={register('contextWarning.en')}

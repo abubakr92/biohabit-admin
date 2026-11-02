@@ -35,7 +35,7 @@ export const contextRowSchema = z.object({ microActionId: z.string().min(1), mic
     if (!value.dependencyText.nl.trim() || !value.dependencyText.en.trim()) ctx.addIssue({ code: 'custom', path: ['dependencyText'], message: 'Dependency text is required in NL and EN.' });
   }
 });
-export const labelSchema = z.object({ key: z.string().regex(/^[a-z0-9-]+$/), name: bilingualRequired });
+export const labelSchema = z.object({ key: z.string().regex(/^[a-z0-9-]+$/), name: bilingualRequired, isActive: z.boolean().default(true) });
 export const notificationTemplateSchema = z.object({ triggerKey: z.string().regex(/^[a-z0-9_]+$/, 'Use lowercase letters, digits and underscores.'), title: bilingualRequired, body: bilingualRequired, deeplinkTarget: z.string().trim().max(200).default(''), isActive: z.boolean() });
 export const reorderSchema = z.object({ stackId: z.string().min(1), ids: z.array(z.string()).min(1) });
 export const userQuerySchema = z.object({ status: z.enum(['all', 'silent', 'unlocked', 'locked']).default('all'), limit: z.coerce.number().int().min(1).max(200).default(50), cursor: z.string().min(1).optional() });

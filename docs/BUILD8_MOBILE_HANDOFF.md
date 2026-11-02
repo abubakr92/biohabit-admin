@@ -110,20 +110,19 @@ planning sheet from a stack is your call. The anchor formula above is the source
 
 None of these needed a data change; they're listed so the app reads them the same way the panel does.
 
-- **Function on a composition row:** `contextRows.functionTag` null means the row takes its
-  **stack's** `functionTag`. Nine rows carry an older stored value that differs from their stack's;
-  the panel shows those as overrides and the client may clear them.
+- **Function on a composition row:** resolves **`contextRows.functionTag` → `microActions.defaultFunctionTag` → `stacks.functionTag`**, the same order as the Home rings. This replaces the row → stack rule in the first version of this note. The nine stored row functions stay as they are.
 - **Depth:** `contextRows.includedInMode`: an Essential row is in all three depths, a Balanced row
   in Balanced and Full, a Full row in Full only. Every row has a value.
 - **Minutes per depth:** `durationOverrideMin ?? microAction.durationMin`, summed over every row in
   that depth, **optional rows included**. Subtract only rows the member switched off. Panel totals:
   Evening Wind-Down 4/8/23, Skin & Collagen 11/13/16, Morning Start 7/17/30.
 - **Labels:** `stacks.primaryLabel` + `stacks.supportingLabels`, by key against `labels` (8 keys:
-  energy, sleep, gut, brain, stress, hormones, movement, skin).
+  energy, sleep, gut, brain, stress, hormones, movement, skin). `labels.isActive` is `false` for a
+  deactivated label and absent on every label saved before the flag; absent means active.
 - **Daypart:** `stacks.daypart` may be null ("Not set"): still recommendable, no daypart bonus.
 - **Active:** `stacks.isActive`.
-- **Sort order:** `stacks.stackOrder`. It is **missing** on Morning Start, Focus Primer, Glucose
-  Glide and Energy Boost; read missing as 0. The client is asked to set distinct values.
+- **Sort order:** `stacks.stackOrder`. An optional manual place within a daypart; 0 or missing means
+  not set, so sort by computed start time, then title.
 
 ## 4. Seen in live data, for you to look at
 

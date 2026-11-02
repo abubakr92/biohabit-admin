@@ -75,6 +75,7 @@ export function MicroActionForm({
             />
             <BilingualField
               label="How-to"
+              hint="Home shows the first line, up to the first line break. Keep that line short."
               multiline
               nl={register('howTo.nl')}
               en={register('howTo.en')}
@@ -144,7 +145,8 @@ export function MicroActionForm({
                 ))}
               </select>
               <span className="mt-1 block text-xs font-normal text-slate-500">
-                Library classification. Inside a stack, the action takes the stack&rsquo;s function.
+                Used on every composition row that sets no function of its own. Not set: the row
+                takes the stack&rsquo;s function.
               </span>
             </label>
             <div className="md:col-span-2">

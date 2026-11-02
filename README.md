@@ -144,12 +144,12 @@ interactive step:
 
 ```powershell
 npm run firebase:login          # once per machine; opens a browser
-npm run firebase:deploy         # the api function only
+npm run firebase:deploy         # the api and cleanup functions only
 npm run firebase:deploy:rules   # security rules, only if the mirror still matches production
 npm run verify:deployment       # public smoke test; no credentials needed
 ```
 
-`firebase:deploy` pushes the `api` function only. The security rules belong to the mobile lead and
+`firebase:deploy` pushes the `api` and `cleanupDeletedAccount` functions and nothing else. The security rules belong to the mobile lead and
 `firestore.rules` here is a mirror of what production enforces. `firebase:deploy:rules` exists only
 for additive blocks this panel owns (the `moments` collection, Build 8 C1): it runs `check-rules`
 first and stops if production has drifted from the mirror, so a deploy from here can never revert a

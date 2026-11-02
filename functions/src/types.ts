@@ -30,7 +30,9 @@ export interface MicroAction extends MicroActionInput { id: string; usedInStacks
 // is the effective order.
 export interface ContextRowInput { microActionId: string; microActionTitle: Bilingual; functionTag: FunctionTag | null; stackSortOrder: number; priorityOrder: number; isOptional: boolean; isActiveByDefault: boolean; includedInMode: Mode; daypart: Daypart | null; durationOverrideMin: number | null; timingType: TimingType; startTime: string | null; endTime: string | null; relativeToContextId: string | null; dependencyText: Bilingual; contextEffect: Bilingual; contextWarning: Bilingual; centreTime: string | null; elasticityMin: number | null }
 export interface ContextRow extends ContextRowInput { id: string; stackId: string }
-export interface LabelInput { key: string; name: Bilingual }
+// `isActive` false hides a label in the app. An absent flag reads as active, which is how every
+// label written before the flag exists and how the app treats it.
+export interface LabelInput { key: string; name: Bilingual; isActive: boolean }
 // Push copy, editable without an app release. camelCase here mirrors the spec's snake_case
 // (`trigger_key` → `triggerKey`), the same mapping `stack_sort_order` → `stackSortOrder` already uses.
 export interface NotificationTemplateInput { triggerKey: string; title: Bilingual; body: Bilingual; deeplinkTarget: string; isActive: boolean }

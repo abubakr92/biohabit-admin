@@ -367,3 +367,9 @@ test('C1 — a moment saves only when every value is present', () => {
   assert.deepEqual(Object.keys(fields(missing)).sort(), ['defaultTime', 'label.nl']);
   assert.equal(momentSchema.safeParse({ ...complete, daypart: null }).success, false);
 });
+
+test('Build 1 — a label is active unless switched off', () => {
+  const parsed = labelSchema.parse({ key: 'focus', name: bilingual('Focus') });
+  assert.equal(parsed.isActive, true);
+  assert.equal(labelSchema.parse({ key: 'focus', name: bilingual('Focus'), isActive: false }).isActive, false);
+});

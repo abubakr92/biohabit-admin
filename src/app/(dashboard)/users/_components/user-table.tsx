@@ -26,7 +26,7 @@ export function UserTable({
             className="font-semibold hover:text-[#236b5b]"
             onClick={(event) => event.stopPropagation()}
           >
-            {user.email}
+            {user.email || 'Guest'}
           </Link>
           {relativeDays(user.lastCheckOffAt) >= 3 && (
             <span className="mt-1 flex items-center gap-1 text-xs font-semibold text-amber-700">

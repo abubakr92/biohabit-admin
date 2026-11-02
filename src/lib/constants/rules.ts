@@ -1,15 +1,4 @@
-import type { Daypart, Mode } from '@/types/models';
-
-/**
- * Guidance shown while composing a stack, not a limit the API enforces — nothing is ever rejected
- * for exceeding one. `null` means no cap: an evening wind-down legitimately runs past an hour, so
- * only Essential carries a target.
- */
-export const MODE_CAPS: Record<Mode, number | null> = {
-  essential: 10,
-  balanced: null,
-  full: null,
-};
+import type { Daypart } from '@/types/models';
 
 export const DAYPART_WINDOWS: Record<Daypart, string> = {
   morning: '05:00–11:00',

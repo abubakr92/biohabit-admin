@@ -79,7 +79,8 @@ export interface Stack {
   // still a draft; required to publish.
   daypart: Daypart | null;
   /**
-   * Orders two stacks that share a daypart, lowest first. Distinct from a context row's
+   * Optional manual place within a daypart, lowest first; 0 means automatic, which sorts by computed
+   * start time, then title. Distinct from a context row's
    * `stackSortOrder`, which orders micro-actions *inside* one stack — the two must never be
    * conflated. A template-level field only: the app does not let members drag Home or Agenda.
    */
@@ -104,9 +105,9 @@ export interface MicroAction {
   durationMin: number;
   level: Level;
   /**
-   * The function this action usually serves, as a Library classification. Context rows do not
-   * inherit it: inside a stack a row takes the stack's function (Build 8 open items, D6). Null
-   * until an editor sets one — deliberately not defaulted, so "not set" stays visible.
+   * The function this action usually serves. A row without its own function uses it; only when this
+   * is null too does the row fall back to the stack. Null until an editor sets one — deliberately
+   * not defaulted, so "not set" stays visible.
    */
   defaultFunctionTag: FunctionTag | null;
   usedInStacksCount: number;
@@ -118,9 +119,9 @@ export interface ContextRow {
   microActionId: string;
   microActionTitle: Bilingual;
   /**
-   * Null means inherit the parent stack's `functionTag`, which is the rule (Build 8 open items,
-   * D6). A stored value is a pre-existing override; it is kept and shown as one, never cleared by
-   * the panel.
+   * Null means no function of its own. Resolved row -> micro-action default -> stack, here and in the
+   * app's Home rings, because the rings count what each action does inside its stack. See
+   * `resolveFunction` in lib/utils/modes.
    */
   functionTag: FunctionTag | null;
   /** The effective, visible order of this row inside its stack. Drag-and-drop owns it. */
@@ -171,10 +172,12 @@ export interface NotificationTemplate {
   updatedAt: string;
 }
 
+/** `isActive` false hides a label in the app; a member who had chosen it just stops matching on it. */
 export interface Label {
   id: string;
   key: string;
   name: Bilingual;
+  isActive: boolean;
   usageCount: number;
 }
 

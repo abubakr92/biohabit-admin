@@ -426,3 +426,46 @@ test('B1 — notification templates round-trip and refuse a duplicate trigger', 
   await store.deleteNotificationTemplate(created.id);
   assert.deepEqual(await store.listNotificationTemplates(), []);
 });
+
+test('Build 1 — a label stored before the flag existed reads as active', async () => {
+  await db.collection('labels').doc('label-legacy').set({ key: 'legacy', name: bilingual('Legacy') });
+  const label = (await store.listLabels()).find((item) => item.id === 'label-legacy');
+  assert.equal(label.isActive, true);
+  await db.collection('labels').doc('label-legacy').delete();
+});
+
+test('Build 1 — deleting an account clears its verification codes and nobody else\'s', async () => {
+  await db.collection('emailOtps').doc('gone').set({ email: 'gone@example.com' });
+  await db.collection('emailOtps').doc('stays').set({ email: 'stays@example.com' });
+  await db.collection('passwordResetOtps').doc('hash-gone').set({ uid: 'gone' });
+  await db.collection('passwordResetOtps').doc('hash-stays').set({ uid: 'stays' });
+  await store.cleanupDeletedAccount('gone');
+  assert.equal((await db.collection('emailOtps').doc('gone').get()).exists, false);
+  assert.equal((await db.collection('passwordResetOtps').doc('hash-gone').get()).exists, false);
+  assert.equal((await db.collection('emailOtps').doc('stays').get()).exists, true);
+  assert.equal((await db.collection('passwordResetOtps').doc('hash-stays').get()).exists, true);
+  await store.cleanupDeletedAccount('never-had-a-code');
+  await db.collection('emailOtps').doc('stays').delete();
+  await db.collection('passwordResetOtps').doc('hash-stays').delete();
+});
+
+test('Build 1 — only a time the member set counts as shifted', async () => {
+  const routines = require('../lib/routines');
+  await db.collection('microActions').doc('action-div').set({ durationMin: 2 });
+  await db.collection('stacks').doc('stack-div').set({ title: bilingual('Div'), supportingLabels: [], createdAt: iso(1), updatedAt: iso(1) });
+  await db.collection('contextRows').doc('row-a').set({ ...row({ microActionId: 'action-div', stackSortOrder: 0 }), stackId: 'stack-div' });
+  await db.collection('contextRows').doc('row-b').set({ ...row({ microActionId: 'action-div', stackSortOrder: 1 }), stackId: 'stack-div' });
+  await db.collection('users').doc('div-user').set({ email: 'div@example.com', createdAt: iso(1) });
+  await db.collection('users').doc('div-user').collection('routines').doc('routine-div').set({
+    title: 'Div',
+    createdAt: Date.now(),
+    actions: [
+      { id: 'seed-row-a', at: '20:30', amount: '2 min', hasOwnTime: false },
+      { id: 'seed-row-b', at: '21:10', amount: '2 min', hasOwnTime: true },
+    ],
+  });
+  const divergence = await routines.getRoutineDivergence('routine-div');
+  assert.equal(divergence.timesChanged, 1, 'the anchor-computed 20:30 is not a change');
+  await db.collection('users').doc('div-user').collection('routines').doc('routine-div').delete();
+  for (const [name, id] of [['contextRows', 'row-a'], ['contextRows', 'row-b'], ['stacks', 'stack-div'], ['microActions', 'action-div'], ['users', 'div-user']]) await db.collection(name).doc(id).delete();
+});

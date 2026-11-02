@@ -65,7 +65,7 @@ export default function UserPage() {
       </Link>
       <PageHeader
         eyebrow="Member"
-        title={item.name || item.email}
+        title={item.name || item.email || 'Guest'}
         description={item.name ? item.email : 'Tester profile and routine activity.'}
         actions={
           item.unlockedAt ? (
@@ -169,14 +169,14 @@ export default function UserPage() {
       <ConfirmDialog
         open={confirming}
         title="Unlock this user now?"
-        description={`${item.email} will receive immediate unlocked access. This administrative action takes effect right away.`}
+        description={`${item.email || 'This guest'} will receive immediate unlocked access. This administrative action takes effect right away.`}
         confirmLabel="Unlock user"
         pending={unlock.isPending}
         onClose={() => setConfirming(false)}
         onConfirm={() =>
           unlock.mutate(item.id, {
             onSuccess: () => {
-              toast(`${item.email} unlocked.`);
+              toast(`${item.email || 'Guest'} unlocked.`);
               setConfirming(false);
               user.refetch();
             },

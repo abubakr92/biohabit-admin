@@ -3,10 +3,12 @@ export function BilingualField({
   label,
   nl,
   en,
+  hint,
   multiline,
   errors,
 }: {
   label: string;
+  hint?: string;
   nl: React.InputHTMLAttributes<HTMLInputElement> &
     React.TextareaHTMLAttributes<HTMLTextAreaElement>;
   en: React.InputHTMLAttributes<HTMLInputElement> &
@@ -18,6 +20,7 @@ export function BilingualField({
   return (
     <div>
       <label className="mb-2 block text-sm font-semibold text-slate-700">{label}</label>
+      {hint && <p className="-mt-1 mb-2 text-xs text-slate-500">{hint}</p>}
       <div className="grid gap-3 md:grid-cols-2">
         <div>
           <span className="mb-1.5 block text-xs font-semibold text-slate-400">NL</span>

@@ -462,3 +462,16 @@ test('C1 — a stack keeps its default anchors per segment, and a removed one is
   assert.equal(untouched.body.defaultAnchors.evening.offsetMin, -60, 'a patch without anchors keeps them');
   await call(`/stacks/${created.body.id}`, { method: 'DELETE' });
 });
+
+test('Build 1 — a label can be switched off, and a later edit keeps it off', async () => {
+  const created = await call('/labels', { method: 'POST', body: { key: 'e2e-active', name: bilingual('Active test') } });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.isActive, true, 'a new label starts active');
+  const off = await call(`/labels/${created.body.id}`, { method: 'PATCH', body: { isActive: false } });
+  assert.equal(off.body.isActive, false);
+  const renamed = await call(`/labels/${created.body.id}`, { method: 'PATCH', body: { name: bilingual('Renamed') } });
+  assert.equal(renamed.body.isActive, false, 'renaming must not switch it back on');
+  const listed = (await call('/labels')).body.find((label) => label.id === created.body.id);
+  assert.equal(listed.isActive, false);
+  assert.equal((await call(`/labels/${created.body.id}`, { method: 'DELETE' })).status, 204);
+});

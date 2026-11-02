@@ -56,7 +56,7 @@ export function RoutineTable({ data }: { data: UserRoutine[] }) {
           href={`/users/${routine.userId}`}
           className="text-slate-600 hover:text-[#236b5b] hover:underline"
         >
-          {routine.userEmail}
+          {routine.userEmail || 'Guest'}
         </Link>
       ),
     },

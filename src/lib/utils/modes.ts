@@ -1,4 +1,4 @@
-import type { ContextRow, MicroAction, Mode } from '@/types/models';
+import type { ContextRow, FunctionTag, MicroAction, Mode } from '@/types/models';
 
 const rank: Record<Mode, number> = { essential: 0, balanced: 1, full: 2 };
 export const appearsInMode = (includedFrom: Mode, preview: Mode) =>
@@ -9,6 +9,27 @@ export const derivedModes = (mode: Mode): Mode[] =>
     : mode === 'balanced'
       ? ['balanced', 'full']
       : ['full'];
+export type FunctionSource = 'row' | 'action' | 'stack';
+export const functionSourceLabels: Record<FunctionSource, string> = {
+  row: 'Row',
+  action: 'Action default',
+  stack: 'Stack',
+};
+/**
+ * The order the Home rings use too: the row's own function, then the micro-action's default, then
+ * the stack's. The rings count what each action does inside its stack, so the stack's function is
+ * the last resort rather than the rule.
+ */
+export function resolveFunction(
+  rowFunction: FunctionTag | null,
+  action: Pick<MicroAction, 'defaultFunctionTag'> | undefined,
+  stackFunction: FunctionTag,
+): { value: FunctionTag; source: FunctionSource } {
+  if (rowFunction) return { value: rowFunction, source: 'row' };
+  if (action?.defaultFunctionTag) return { value: action.defaultFunctionTag, source: 'action' };
+  return { value: stackFunction, source: 'stack' };
+}
+
 /**
  * A routine action's `depth` arrives in the app's own vocabulary. Its Build 8 change log maps it
  * one-to-one onto a row's `includedInMode`: light = Essential, medium = Balanced, deep = Full.

@@ -141,6 +141,7 @@ export function StackDetailsForm({
                 {labels.map((item) => (
                   <option key={item.id} value={item.key}>
                     {item.name.en}
+                    {item.isActive ? '' : ' (inactive)'}
                   </option>
                 ))}
                 {/* A key that has since been renamed or deleted still round-trips instead of
@@ -176,16 +177,19 @@ export function StackDetailsForm({
               )}
             </label>
             <label className="text-sm font-semibold">
-              Order within daypart
+              Order within daypart (optional)
               <input
                 type="number"
                 min="0"
                 step="1"
                 className="field mt-2"
-                {...register('stackOrder', { valueAsNumber: true })}
+                {...register('stackOrder', {
+                  setValueAs: (value) => (value === '' ? 0 : Number(value)),
+                })}
               />
               <span className="mt-1 block text-xs font-normal text-slate-500">
-                Orders two stacks that share a daypart, lowest first. This is not the order of the
+                Leave at 0 and the app sorts by start time, then title. A number fixes this
+                stack&rsquo;s place in the Library, lowest first. This is not the order of the
                 actions inside the stack — drag those on the Composition tab.
               </span>
               {errors.stackOrder && (

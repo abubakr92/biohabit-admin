@@ -1,7 +1,7 @@
 import type { ContextRowInput, Daypart, LabelInput, MicroActionInput, Mode, StackInput } from './types';
 
 const labelNames: Array<[string, string, string]> = [['energy', 'Energie', 'Energy'], ['sleep', 'Slaap', 'Sleep'], ['gut', 'Darmen', 'Gut'], ['brain', 'Brein', 'Brain'], ['stress', 'Stress', 'Stress'], ['hormones', 'Hormonen', 'Hormones'], ['movement', 'Beweging', 'Movement'], ['skin', 'Huid', 'Skin']];
-export const labels: LabelInput[] = labelNames.map(([key, nl, en]) => ({ key, name: { nl, en } }));
+export const labels: LabelInput[] = labelNames.map(([key, nl, en]) => ({ key, name: { nl, en }, isActive: true }));
 
 const actionData: Array<[string, string, number, string[]]> = [
   ['Hydratatie', 'Hydration', 2, ['energy', 'gut']], ['Box breathing', 'Box breathing', 3, ['stress', 'brain']], ['Ochtendlicht', 'Morning light', 5, ['energy', 'sleep']], ['Nekmobiliteit', 'Neck mobility', 3, ['movement']], ['Intentie zetten', 'Set an intention', 2, ['brain']],

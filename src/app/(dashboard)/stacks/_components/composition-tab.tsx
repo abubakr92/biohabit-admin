@@ -29,7 +29,7 @@ import {
 import { useMicroActions } from '@/lib/hooks/use-micro-actions';
 import { useMoments } from '@/lib/hooks/use-moments';
 import { describeAnchor, startTimes } from '@/lib/utils/anchors';
-import { appearsInMode, durationForMode } from '@/lib/utils/modes';
+import { appearsInMode, durationForMode, resolveFunction } from '@/lib/utils/modes';
 import { LoadingState } from '@/components/data/loading-state';
 import { ErrorState } from '@/components/data/error-state';
 import { EmptyState } from '@/components/data/empty-state';
@@ -91,7 +91,9 @@ export function CompositionTab({ stack }: { stack: Stack }) {
       relativeToContextId: null,
       dependencyText: { nl: '', en: '' },
       contextEffect: { nl: action.effect.nl, en: action.effect.en },
-      contextWarning: { nl: action.warning.nl, en: action.warning.en },
+      // Left empty: the app shows the action's own warning and then this one, so copying it here
+      // would show the same text twice.
+      contextWarning: { nl: '', en: '' },
       centreTime: null,
       elasticityMin: null,
     };
@@ -219,7 +221,11 @@ export function CompositionTab({ stack }: { stack: Stack }) {
       <ContextRowDrawer
         key={selected?.id ?? 'closed'}
         stackDaypart={stack.daypart}
-        stackFunction={stack.functionTag}
+        inheritedFunction={resolveFunction(
+          null,
+          actions.find((action) => action.id === selected?.microActionId),
+          stack.functionTag,
+        )}
         open={Boolean(selected)}
         row={selected}
         rows={rows}

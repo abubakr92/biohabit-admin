@@ -1,7 +1,6 @@
-import { AlertTriangle, Clock3 } from 'lucide-react';
+import { Clock3 } from 'lucide-react';
 import type { Mode } from '@/types/models';
 import { modes, labelFor } from '@/lib/constants/enums';
-import { MODE_CAPS } from '@/lib/constants/rules';
 export function ModePreviewBar({
   mode,
   duration,
@@ -11,8 +10,6 @@ export function ModePreviewBar({
   duration: number;
   onChange: (mode: Mode) => void;
 }) {
-  const cap = MODE_CAPS[mode];
-  const exceeded = cap !== null && duration > cap;
   return (
     <div className="card mb-5 flex flex-col justify-between gap-4 p-4 lg:flex-row lg:items-center">
       <div>
@@ -31,28 +28,11 @@ export function ModePreviewBar({
           ))}
         </div>
       </div>
-      <div
-        className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${exceeded ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-200 bg-slate-50'}`}
-      >
-        {exceeded ? (
-          <AlertTriangle className="size-5 text-amber-600" />
-        ) : (
-          <Clock3 className="size-5 text-[#236b5b]" />
-        )}
+      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <Clock3 className="size-5 text-[#236b5b]" />
         <div>
-          <p className="text-sm font-bold tabular-nums">
-            {duration} min{' '}
-            <span className="font-normal text-slate-500">
-              {cap === null ? '· no cap' : `/ ${cap} min target`}
-            </span>
-          </p>
-          <p className="text-xs">
-            {cap === null
-              ? `Elapsed time in ${labelFor(mode)} — no target`
-              : exceeded
-                ? `${labelFor(mode)} is ${duration - cap} min over its ${cap} min target.`
-                : `${cap - duration} min remaining`}
-          </p>
+          <p className="text-sm font-bold tabular-nums">{duration} min</p>
+          <p className="text-xs">Elapsed time in {labelFor(mode)}</p>
         </div>
       </div>
     </div>

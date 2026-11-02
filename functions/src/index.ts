@@ -2,6 +2,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { onRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2';
+import { region as v1Region } from 'firebase-functions/v1';
 import { ZodError } from 'zod';
 import { adminAuth } from './firebase';
 import { contextRowSchema, labelSchema, microActionSchema, momentSchema, notificationTemplateSchema, reorderSchema, stackSchema, userQuerySchema } from './schemas';
@@ -84,7 +85,7 @@ app.delete('/micro-actions/:id', route(async (request, response) => { await stor
 
 app.get('/labels', route(async (_request, response) => { response.json(await store.listLabels()); }));
 app.post('/labels', route(async (request, response) => { const input = labelSchema.parse(request.body) as LabelInput; const label = await store.createLabel(input); await audit(response, 'create', 'label', label.id); response.status(201).json(label); }));
-app.patch('/labels/:id', route(async (request, response) => { const existing = (await store.listLabels()).find((label) => label.id === request.params.id); if (!existing) throw new store.HttpError(404, 'Label not found.'); const input = labelSchema.parse({ key: existing.key, name: existing.name, ...request.body }) as LabelInput; const label = await store.updateLabel(request.params.id, input); await audit(response, 'update', 'label', request.params.id); response.json(label); }));
+app.patch('/labels/:id', route(async (request, response) => { const existing = (await store.listLabels()).find((label) => label.id === request.params.id); if (!existing) throw new store.HttpError(404, 'Label not found.'); const input = labelSchema.parse({ key: existing.key, name: existing.name, isActive: existing.isActive, ...request.body }) as LabelInput; const label = await store.updateLabel(request.params.id, input); await audit(response, 'update', 'label', request.params.id); response.json(label); }));
 app.delete('/labels/:id', route(async (request, response) => { await store.deleteLabel(request.params.id); await audit(response, 'delete', 'label', request.params.id); response.status(204).send(); }));
 
 // The seven moments of a day. A fixed list keyed like the app's baseMoments: editable, never created or deleted.
@@ -130,3 +131,6 @@ function microActionInput(action: MicroActionInput): MicroActionInput { return {
 function contextInput(row: ContextRowInput): ContextRowInput { return { microActionId: row.microActionId, microActionTitle: row.microActionTitle, functionTag: row.functionTag ?? null, stackSortOrder: row.stackSortOrder, priorityOrder: row.priorityOrder, isOptional: row.isOptional, isActiveByDefault: row.isActiveByDefault, includedInMode: row.includedInMode, daypart: row.daypart ?? null, durationOverrideMin: row.durationOverrideMin, timingType: row.timingType, startTime: row.startTime, endTime: row.endTime, relativeToContextId: row.relativeToContextId, dependencyText: row.dependencyText, contextEffect: row.contextEffect, contextWarning: row.contextWarning, centreTime: row.centreTime, elasticityMin: row.elasticityMin }; }
 
 export const api = onRequest({ timeoutSeconds: 60, memory: '256MiB', invoker: 'public' }, app);
+
+// Auth delete triggers only exist in the v1 API.
+export const cleanupDeletedAccount = v1Region('europe-west4').auth.user().onDelete((user) => store.cleanupDeletedAccount(user.uid));

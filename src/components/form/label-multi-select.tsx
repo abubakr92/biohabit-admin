@@ -23,6 +23,7 @@ export function LabelMultiSelect({
             className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${active ? 'border-[#236b5b] bg-[#eaf5f1] text-[#195548]' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
           >
             {label.name.en}
+            {label.isActive ? '' : ' (inactive)'}
           </button>
         );
       })}

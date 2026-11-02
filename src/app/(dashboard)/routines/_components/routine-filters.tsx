@@ -70,7 +70,7 @@ export function RoutineFilters({
         <option value="">All users</option>
         {users.map((user) => (
           <option key={user.id} value={user.id}>
-            {user.email}
+            {user.email || `Guest ${user.id.slice(0, 6)}`}
           </option>
         ))}
       </select>

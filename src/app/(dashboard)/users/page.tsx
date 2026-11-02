@@ -31,7 +31,7 @@ export default function UsersPage() {
     selected &&
     unlock.mutate(selected.id, {
       onSuccess: () => {
-        toast(`${selected.email} unlocked.`);
+        toast(`${selected.email || 'Guest'} unlocked.`);
         setSelected(null);
       },
       onError: (e) => toast(e.message, 'error'),
@@ -86,7 +86,7 @@ export default function UsersPage() {
       <ConfirmDialog
         open={Boolean(selected)}
         title="Unlock this user now?"
-        description={`${selected?.email ?? 'This user'} will receive immediate unlocked access. This administrative action takes effect right away.`}
+        description={`${selected?.email || 'This user'} will receive immediate unlocked access. This administrative action takes effect right away.`}
         confirmLabel="Unlock user"
         pending={unlock.isPending}
         onClose={() => setSelected(null)}
