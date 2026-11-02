@@ -182,7 +182,7 @@ Routines belong to the member who created them. **Every endpoint here is read-on
 
 ## Account deletion
 
-The app deletes everything the member owns, then the Auth user. The `cleanupDeletedAccount` function runs when an Auth user is deleted and removes what clients cannot reach: `emailOtps/{uid}` and any `passwordResetOtps` document carrying that `uid`.
+The app deletes everything the member owns, then the Auth user. The `cleanupDeletedAccount` function runs when a `users/{uid}` profile is deleted and removes what clients cannot reach: `emailOtps/{uid}` and any `passwordResetOtps` document carrying that `uid`.
 
 ## Status codes
 

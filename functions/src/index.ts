@@ -2,7 +2,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { onRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2';
-import { region as v1Region } from 'firebase-functions/v1';
+import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { ZodError } from 'zod';
 import { adminAuth } from './firebase';
 import { contextRowSchema, labelSchema, microActionSchema, momentSchema, notificationTemplateSchema, reorderSchema, stackSchema, userQuerySchema } from './schemas';
@@ -132,5 +132,7 @@ function contextInput(row: ContextRowInput): ContextRowInput { return { microAct
 
 export const api = onRequest({ timeoutSeconds: 60, memory: '256MiB', invoker: 'public' }, app);
 
-// Auth delete triggers only exist in the v1 API.
-export const cleanupDeletedAccount = v1Region('europe-west4').auth.user().onDelete((user) => store.cleanupDeletedAccount(user.uid));
+// Fires on the profile rather than the Auth user: Auth delete triggers exist only as first-generation
+// functions, which this project can't deploy in its region. The app deletes the profile as part of
+// deleting an account, and nothing else deletes it.
+export const cleanupDeletedAccount = onDocumentDeleted('users/{uid}', (event) => store.cleanupDeletedAccount(event.params.uid));
