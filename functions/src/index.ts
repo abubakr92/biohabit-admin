@@ -3,7 +3,11 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import { onRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { logger } from 'firebase-functions';
 import { ZodError } from 'zod';
+import { requestAnalyticsDeletion } from './analytics';
+import { runGuestRetention } from './retention';
 import { adminAuth } from './firebase';
 import { contextRowSchema, labelSchema, microActionSchema, momentSchema, notificationTemplateSchema, reorderSchema, stackSchema, userQuerySchema } from './schemas';
 import * as store from './store';
@@ -135,4 +139,18 @@ export const api = onRequest({ timeoutSeconds: 60, memory: '256MiB', invoker: 'p
 // Fires on the profile rather than the Auth user: Auth delete triggers exist only as first-generation
 // functions, which this project can't deploy in its region. The app deletes the profile as part of
 // deleting an account, and nothing else deletes it.
-export const cleanupDeletedAccount = onDocumentDeleted('users/{uid}', (event) => store.cleanupDeletedAccount(event.params.uid));
+// The Analytics request is logged by outcome only, never with the account or the instance ID.
+export const cleanupDeletedAccount = onDocumentDeleted('users/{uid}', async (event) => {
+  await store.cleanupDeletedAccount(event.params.uid);
+  try {
+    if ((await requestAnalyticsDeletion(event.data?.get('analyticsAppInstanceId'))) === 'requested') logger.info('analytics deletion requested');
+  } catch (error) {
+    logger.error('analytics deletion failed', { status: (error as { response?: { status?: number } }).response?.status ?? null });
+  }
+});
+
+// Guest data retention, daily. Deletes only when GUEST_RETENTION_APPLY=true in functions/.env;
+// otherwise every run is a dry run. Logs counts and dates, never an account.
+export const guestRetention = onSchedule({ schedule: 'every day 03:00', timeZone: 'Europe/Amsterdam', timeoutSeconds: 540, memory: '256MiB' }, async () => {
+  logger.info('guest retention', await runGuestRetention({ apply: process.env.GUEST_RETENTION_APPLY === 'true' }));
+});
