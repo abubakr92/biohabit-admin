@@ -187,6 +187,18 @@ test('deleting a stack removes its context rows with it', async () => {
   );
 });
 
+test('renaming an action carries the new title to its composition rows, and only its own', async () => {
+  const stack = await store.createStack({ title: bilingual('Renames'), description: bilingual(''), coherence: bilingual(''), suggestedTiming: bilingual(''), functionTag: 'activate', primaryLabel: 'focus', supportingLabels: [], level: 'beginner', isPremium: false, isActive: false });
+  const action = await store.createMicroAction({ title: bilingual('HIIT 10 min'), effect: bilingual('e'), howTo: bilingual('h'), warning: bilingual(''), labels: ['focus'], durationMin: 10, level: 'beginner', defaultFunctionTag: null });
+  const renamed = await store.createContextRow(stack.id, row({ microActionId: action.id, microActionTitle: bilingual('HIIT 10 min') }));
+  const other = await store.createContextRow(stack.id, row({ stackSortOrder: 1 }));
+  const { id: _id, usedInStacksCount: _count, ...input } = action;
+  await store.updateMicroAction(action.id, { ...input, title: { nl: 'HIIT', en: 'HIIT' } });
+  assert.deepEqual((await store.getContextRow(renamed.id)).microActionTitle, { nl: 'HIIT', en: 'HIIT' });
+  assert.deepEqual((await store.getContextRow(other.id)).microActionTitle, bilingual('Breathe'));
+  await store.deleteStack(stack.id);
+});
+
 // 12 testers: 0–3 have never checked off, 4–7 checked off yesterday, 8–11 went quiet nine days
 // ago. Silent (no check-off within three days) is therefore 0–3 and 8–11 — eight in total.
 const NEVER = ['tester-00', 'tester-01', 'tester-02', 'tester-03'];

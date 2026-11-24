@@ -89,7 +89,17 @@ export async function reorderContextRows(stackId: string, ids: string[]) {
 export async function listMicroActions(): Promise<MicroAction[]> { const [actions, rows] = await Promise.all([all<MicroActionInput>(collections.actions), all<Omit<ContextRow, 'id'>>(collections.contexts)]); return actions.map((action) => ({ ...action, usedInStacksCount: new Set(rows.filter((row) => row.microActionId === action.id).map((row) => row.stackId)).size })); }
 export async function getMicroAction(id: string) { const action = await one<MicroActionInput>(collections.actions, id, 'Micro-action'); const rows = (await db.collection(collections.contexts).where('microActionId', '==', id).get()).docs.map((document) => document.data() as Omit<ContextRow, 'id'>); return { ...action, usedInStacksCount: new Set(rows.map((row) => row.stackId)).size }; }
 export async function createMicroAction(input: MicroActionInput) { const reference = await db.collection(collections.actions).add(input); return { ...input, id: reference.id, usedInStacksCount: 0 }; }
-export async function updateMicroAction(id: string, input: MicroActionInput) { await one<MicroActionInput>(collections.actions, id, 'Micro-action'); await db.collection(collections.actions).doc(id).set(input); return getMicroAction(id); }
+// Composition rows keep a copy of the action's title (the panel's stack details and older app reads
+// show it), so a rename is carried to every row in the same write, or the old title lingers there.
+export async function updateMicroAction(id: string, input: MicroActionInput) {
+  await one<MicroActionInput>(collections.actions, id, 'Micro-action');
+  const rows = await db.collection(collections.contexts).where('microActionId', '==', id).get();
+  const batch = db.batch();
+  batch.set(db.collection(collections.actions).doc(id), input);
+  rows.docs.forEach((row) => batch.update(row.ref, { microActionTitle: input.title }));
+  await batch.commit();
+  return getMicroAction(id);
+}
 export async function deleteMicroAction(id: string) { const action = await one<MicroActionInput>(collections.actions, id, 'Micro-action'); const rows = (await db.collection(collections.contexts).where('microActionId', '==', id).get()).docs.map((document) => document.data() as Omit<ContextRow, 'id'>); if (rows.length) { const stacks = await db.getAll(...[...new Set(rows.map((row) => row.stackId))].map((stackId) => db.collection(collections.stacks).doc(stackId))); const names = stacks.filter((document) => document.exists).map((document) => (document.data() as StackInput).title.en); throw new HttpError(409, `“${action.title.en}” is used in: ${names.join(', ')}.`); } await db.collection(collections.actions).doc(id).delete(); }
 
 async function labelUsage(key: string) { const [stacks, actions] = await Promise.all([all<StackInput>(collections.stacks), all<MicroActionInput>(collections.actions)]); return [...stacks.filter((stack) => stack.primaryLabel === key || stack.supportingLabels.includes(key)).map((stack) => `stack: ${stack.title.en}`), ...actions.filter((action) => action.labels.includes(key)).map((action) => `action: ${action.title.en}`)]; }

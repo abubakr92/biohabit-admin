@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "test": "npm run build && node --test \"test/schemas.test.js\"",
+    "test": "npm run build && node --test \"test/schemas.test.js\" \"test/bird.test.js\"",
     "test:rules": "node --test \"test/rules.test.js\"",
     "test:store": "npm run build && node --test \"test/store.test.js\"",
     "test:emulated": "npm run build && node --test --test-concurrency=1 \"test/rules.test.js\" \"test/store.test.js\" \"test/api.test.js\" \"test/retention.test.js\"",
@@ -29,7 +29,9 @@
     "export:row-functions": "npm run build --silent && node lib/scripts/export-row-functions.js",
     "create-reviewer": "npm run build && node lib/scripts/create-reviewer.js",
     "dedupe-series": "npm run build && node lib/scripts/dedupe-series.js",
-    "guest-retention": "npm run build && node lib/scripts/guest-retention.js"
+    "guest-retention": "npm run build && node lib/scripts/guest-retention.js",
+    "bird-erasure-test": "npm run build && node lib/scripts/bird-erasure-test.js",
+    "check-row-titles": "npm run build && node lib/scripts/check-row-titles.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

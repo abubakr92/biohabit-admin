@@ -6,7 +6,9 @@ import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 import { ZodError } from 'zod';
+import { defineSecret } from 'firebase-functions/params';
 import { requestAnalyticsDeletion } from './analytics';
+import { eraseFromBird } from './bird';
 import { runGuestRetention } from './retention';
 import { adminAuth } from './firebase';
 import { contextRowSchema, labelSchema, microActionSchema, momentSchema, notificationTemplateSchema, reorderSchema, stackSchema, userQuerySchema } from './schemas';
@@ -139,13 +141,23 @@ export const api = onRequest({ timeoutSeconds: 60, memory: '256MiB', invoker: 'p
 // Fires on the profile rather than the Auth user: Auth delete triggers exist only as first-generation
 // functions, which this project can't deploy in its region. The app deletes the profile as part of
 // deleting an account, and nothing else deletes it.
-// The Analytics request is logged by outcome only, never with the account or the instance ID.
-export const cleanupDeletedAccount = onDocumentDeleted('users/{uid}', async (event) => {
+// The Analytics and Bird steps are logged by outcome and counts only, never with the account, the
+// instance ID or the email address. Each step runs even when the one before it failed.
+const birdDeletionKey = defineSecret('BIRD_DELETION_KEY');
+export const cleanupDeletedAccount = onDocumentDeleted({ document: 'users/{uid}', secrets: [birdDeletionKey] }, async (event) => {
   await store.cleanupDeletedAccount(event.params.uid);
   try {
     if ((await requestAnalyticsDeletion(event.data?.get('analyticsAppInstanceId'))) === 'requested') logger.info('analytics deletion requested');
   } catch (error) {
     logger.error('analytics deletion failed', { status: (error as { response?: { status?: number } }).response?.status ?? null });
+  }
+  // The emulator can load the real key from Secret Manager; test accounts must never reach Bird.
+  if (process.env.FUNCTIONS_EMULATOR === 'true') return;
+  try {
+    const bird = await eraseFromBird(event.data?.get('email'), birdDeletionKey.value());
+    if (bird !== 'none') logger.info('bird erasure', bird);
+  } catch (error) {
+    logger.error('bird erasure failed', { status: (error as { status?: number }).status ?? null });
   }
 });
 
