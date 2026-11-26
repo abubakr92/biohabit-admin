@@ -18,13 +18,14 @@ type Fetch = typeof fetch;
 
 /** The key's prefix names its region (bk_eu1_…, bk_us1_…); a request to the other region fails with 421. */
 export function birdHost(apiKey: string) {
-  const region = /^b[km]_([a-z]+\d+)_/.exec(apiKey)?.[1];
+  const region = /^b[km]_([a-z]+\d+)_/.exec(apiKey.trim())?.[1];
   if (!region) throw new Error('Bird key has no region prefix');
   return `https://${region}.platform.bird.com`;
 }
 
-export async function eraseFromBird(email: unknown, apiKey: string | undefined, fetchImpl: Fetch = fetch): Promise<BirdErasure | 'none'> {
+export async function eraseFromBird(email: unknown, rawKey: string | undefined, fetchImpl: Fetch = fetch): Promise<BirdErasure | 'none'> {
   if (typeof email !== 'string' || !email.trim()) return 'none';
+  const apiKey = rawKey?.trim();
   if (!apiKey) throw new Error('Bird key missing');
   const address = email.trim().toLowerCase();
   const host = birdHost(apiKey);
